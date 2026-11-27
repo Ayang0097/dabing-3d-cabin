@@ -9,6 +9,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 .cabin-upload {
   margin: 0;
@@ -83,18 +84,47 @@
   box-shadow: 0 22px 66px #130a07ab, 0 3px 12px #190f0a66;
 }
 
-.upload-sheet h1 {
+.upload-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 13px;
   margin: 0 0 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #8f66345c;
+}
+
+.upload-sheet h1 {
+  margin: 0;
   font: 750 clamp(32px, 3.5vw, 46px)/1.14 "Songti SC", "Noto Serif CJK SC", STSong, Georgia, serif;
   letter-spacing: -.025em;
 }
+
+.upload-switch, .upload-quiet {
+  color: var(--wood);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.upload-switch { text-underline-offset: 3px; padding-block: 8px; }
+.upload-quiet {
+  min-height: 42px;
+  padding: 7px 12px;
+  border: 1px solid #9f856a;
+  border-radius: 5px;
+  background: #fff7e7;
+  cursor: pointer;
+}
+.upload-quiet:not(:disabled):hover { background: #fdf0d4; }
+.upload-quiet:disabled { opacity: .55; cursor: default; }
 
 .upload-form, .upload-fields, .upload-field { display: grid; min-width: 0; }
 .upload-form { gap: 18px; }
 .upload-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 13px 16px; }
 .upload-source { grid-template-columns: minmax(0, .84fr) minmax(0, 1.16fr); }
+.upload-source:has(> [hidden]) { grid-template-columns: minmax(0, 1fr); }
 .upload-field { gap: 6px; }
 .upload-field label { font-size: 15px; font-weight: 650; }
 .upload-field label span, .upload-palette legend span { color: var(--quiet); font-size: 13px; font-weight: 450; }
@@ -221,6 +251,29 @@
 .upload-status[data-error] { color: #8a2a18; }
 .upload-field .upload-status { margin-top: 0; text-align: left; }
 
+.upload-editor-tools, .upload-owner, .upload-owner section {
+  display: grid;
+  gap: 13px;
+  min-width: 0;
+}
+.upload-editor-tools { margin-bottom: 19px; }
+.upload-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.upload-action-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.upload-action-row .upload-submit { min-height: 44px; }
+.upload-owner section + section, .upload-owner details { border-top: 1px solid #8f66345c; padding-top: 13px; }
+.upload-owner h2 { margin: 0; font-size: 17px; }
+.upload-owner summary { cursor: pointer; font-weight: 650; }
+.upload-owner details[open] summary { margin-bottom: 10px; }
+.upload-owner details .upload-hint { margin-top: 8px; }
+.upload-owner > .upload-quiet { justify-self: start; }
+.upload-issued input { font-family: ui-monospace, monospace; font-size: 14px; }
+.upload-owner .upload-status { margin-top: 0; text-align: left; }
+
 @media (min-width: 900px) {
   .upload-page { grid-template-rows: 1fr; }
   .upload-back {
@@ -248,13 +301,14 @@
     padding: 28px 24px 26px;
   }
 
-  .upload-sheet h1 { margin-bottom: 21px; padding-bottom: 17px; }
+  .upload-heading { margin-bottom: 21px; padding-bottom: 17px; }
   .upload-form { gap: 17px; }
   .upload-swatches { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
   .upload-fields { grid-template-columns: minmax(0, 1fr); }
+  .upload-action-row { grid-template-columns: minmax(0,1fr); }
   .upload-appearance {
     grid-template-columns: 82px minmax(0, 1fr);
     grid-template-areas: "preview shape" "palette palette";

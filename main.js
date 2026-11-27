@@ -723,27 +723,47 @@
     showImportedBot(id);
   }
   function syncCommunityBots(profiles,featuredId){
+    const incoming=new Map();
+    for(const profile of profiles){
+      const previous=incoming.get(profile.id);
+      if(!previous||(profile.revision??0)>(previous.revision??0))incoming.set(profile.id,profile);
+    }
+    function latest(raw){
+      const resident=byId(raw.id);
+      return resident&&(resident.revision??0)>=(raw.revision??0)?resident:CabinBotCatalog.fromCommunity(raw)||resident;
+    }
     const desired=new Map();
     const privateGuests=bots.filter(b=>!b.community);
     let limit=capacity-privateGuests.length;
     // Visiting a named public Bot also works in a room filled entirely with
     // saved residents. Keep the displaced resident in the normal admission queue.
     if(limit===0&&featuredId&&profiles[0]?.id===featuredId&&makeRoomForVisit())limit++;
-    if(featuredId&&limit>0){
-      const record=CabinBotCatalog.fromCommunity(profiles[0]);
+    const featured=incoming.get(featuredId);
+    if(featured&&limit>0){
+      const record=latest(featured);
       if(record?.id===featuredId)desired.set(record.id,record);
     }
     const reading=byId(selectedId);
-    if(reading?.community&&desired.size<limit)desired.set(reading.id,reading);
-    for(const raw of profiles){
+    const readingRevision=reading?.revision;
+    if(reading?.community&&desired.size<limit&&!desired.has(reading.id)){
+      const raw=incoming.get(reading.id);
+      desired.set(reading.id,raw?latest(raw):reading);
+    }
+    for(const raw of incoming.values()){
       if(desired.size>=limit)break;
       if(desired.has(raw.id))continue;
-      const record=byId(raw.id)||CabinBotCatalog.fromCommunity(raw);
+      const record=latest(raw);
       if(record?.community)desired.set(record.id,record);
     }
     let changed=false;
     for(const bot of bots.slice()){
-      if(bot.community&&!desired.has(bot.id)){removeGuest(bot);changed=true;}
+      if(!bot.community)continue;
+      const record=desired.get(bot.id);
+      if(record===bot)continue;
+      if(record&&record.shape===bot.shape&&record.color===bot.color){
+        Object.assign(bot,record);
+      }else removeGuest(bot);
+      changed=true;
     }
     for(const record of desired.values()){
       if(byId(record.id))continue;
@@ -753,6 +773,9 @@
     if(changed){
       $('botCount').textContent=String(bots.length).padStart(2,'0');
       if(drawerMode==='roster')window.CabinWork?.render('roster');
+      if(drawerMode==='bot'&&reading?.community&&byId(reading.id)?.revision!==readingRevision){
+        window.CabinWork?.render('bot',reading.id);
+      }
     }
   }
   function setBotOutfit(id,raw){

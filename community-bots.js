@@ -24,18 +24,19 @@ window.CabinCommunity = (() => {
     try {
       let page = await request('');
       const fresh = [...page.bots];
-      // Posts are immutable and newest first. Reuse the known tail once the
-      // current page overlaps the previous poll, including polls after sleep.
       while (page.next && fresh.length < Cabin.capacity) {
-        const previous = newest.findIndex(bot => bot.id === fresh.at(-1).id);
-        if (previous >= 0) {
-          fresh.push(...newest.slice(previous + 1));
-          break;
-        }
         page = await request('?before=' + page.next);
         fresh.push(...page.bots);
       }
       newest = fresh.slice(0, Cabin.capacity);
+      if (featured) {
+        const id = featured.id;
+        const current = fresh.find(bot => bot.id === id) ??
+          (await request('/' + id).catch(() => null))?.bot;
+        if (featured?.id === id && current && (current.revision ?? 0) >= (featured.revision ?? 0)) {
+          featured = current;
+        }
+      }
       sync();
     } catch {
       // Keep the in-room Bots available through a brief network failure.
@@ -47,6 +48,9 @@ window.CabinCommunity = (() => {
 
   function visit(profile) {
     if (!CabinBotCatalog.fromCommunity(profile)) return;
+    const latest = newest.find(bot => bot.id === profile.id);
+    if (latest && (latest.revision ?? 0) > (profile.revision ?? 0)) profile = latest;
+    if (featured?.id === profile.id && (featured.revision ?? 0) > (profile.revision ?? 0)) profile = featured;
     featured = profile;
     sync();
     if (!Cabin.byId(profile.id)) {

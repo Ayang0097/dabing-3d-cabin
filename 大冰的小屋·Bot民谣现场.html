@@ -5271,7 +5271,7 @@ window.CabinBotCatalog = (() => {
     const {name, job, instructions, shape, color, templateUrl} = raw;
     const info = grokFields({name, job, instructions, shape, color, templateUrl});
     if (info.error) return null;
-    return {...info, id:raw.id, createdAt:raw.createdAt, community:true};
+    return {...info, id:raw.id, createdAt:raw.createdAt, revision:raw.revision ?? 0, community:true};
   }
 
   function all() {
@@ -7905,27 +7905,47 @@ window.makeCabinPlayerView = function(room){
     showImportedBot(id);
   }
   function syncCommunityBots(profiles,featuredId){
+    const incoming=new Map();
+    for(const profile of profiles){
+      const previous=incoming.get(profile.id);
+      if(!previous||(profile.revision??0)>(previous.revision??0))incoming.set(profile.id,profile);
+    }
+    function latest(raw){
+      const resident=byId(raw.id);
+      return resident&&(resident.revision??0)>=(raw.revision??0)?resident:CabinBotCatalog.fromCommunity(raw)||resident;
+    }
     const desired=new Map();
     const privateGuests=bots.filter(b=>!b.community);
     let limit=capacity-privateGuests.length;
     // Visiting a named public Bot also works in a room filled entirely with
     // saved residents. Keep the displaced resident in the normal admission queue.
     if(limit===0&&featuredId&&profiles[0]?.id===featuredId&&makeRoomForVisit())limit++;
-    if(featuredId&&limit>0){
-      const record=CabinBotCatalog.fromCommunity(profiles[0]);
+    const featured=incoming.get(featuredId);
+    if(featured&&limit>0){
+      const record=latest(featured);
       if(record?.id===featuredId)desired.set(record.id,record);
     }
     const reading=byId(selectedId);
-    if(reading?.community&&desired.size<limit)desired.set(reading.id,reading);
-    for(const raw of profiles){
+    const readingRevision=reading?.revision;
+    if(reading?.community&&desired.size<limit&&!desired.has(reading.id)){
+      const raw=incoming.get(reading.id);
+      desired.set(reading.id,raw?latest(raw):reading);
+    }
+    for(const raw of incoming.values()){
       if(desired.size>=limit)break;
       if(desired.has(raw.id))continue;
-      const record=byId(raw.id)||CabinBotCatalog.fromCommunity(raw);
+      const record=latest(raw);
       if(record?.community)desired.set(record.id,record);
     }
     let changed=false;
     for(const bot of bots.slice()){
-      if(bot.community&&!desired.has(bot.id)){removeGuest(bot);changed=true;}
+      if(!bot.community)continue;
+      const record=desired.get(bot.id);
+      if(record===bot)continue;
+      if(record&&record.shape===bot.shape&&record.color===bot.color){
+        Object.assign(bot,record);
+      }else removeGuest(bot);
+      changed=true;
     }
     for(const record of desired.values()){
       if(byId(record.id))continue;
@@ -7935,6 +7955,9 @@ window.makeCabinPlayerView = function(room){
     if(changed){
       $('botCount').textContent=String(bots.length).padStart(2,'0');
       if(drawerMode==='roster')window.CabinWork?.render('roster');
+      if(drawerMode==='bot'&&reading?.community&&byId(reading.id)?.revision!==readingRevision){
+        window.CabinWork?.render('bot',reading.id);
+      }
     }
   }
   function setBotOutfit(id,raw){
@@ -9590,18 +9613,19 @@ window.CabinCommunity = (() => {
     try {
       let page = await request('');
       const fresh = [...page.bots];
-      // Posts are immutable and newest first. Reuse the known tail once the
-      // current page overlaps the previous poll, including polls after sleep.
       while (page.next && fresh.length < Cabin.capacity) {
-        const previous = newest.findIndex(bot => bot.id === fresh.at(-1).id);
-        if (previous >= 0) {
-          fresh.push(...newest.slice(previous + 1));
-          break;
-        }
         page = await request('?before=' + page.next);
         fresh.push(...page.bots);
       }
       newest = fresh.slice(0, Cabin.capacity);
+      if (featured) {
+        const id = featured.id;
+        const current = fresh.find(bot => bot.id === id) ??
+          (await request('/' + id).catch(() => null))?.bot;
+        if (featured?.id === id && current && (current.revision ?? 0) >= (featured.revision ?? 0)) {
+          featured = current;
+        }
+      }
       sync();
     } catch {
       // Keep the in-room Bots available through a brief network failure.
@@ -9613,6 +9637,9 @@ window.CabinCommunity = (() => {
 
   function visit(profile) {
     if (!CabinBotCatalog.fromCommunity(profile)) return;
+    const latest = newest.find(bot => bot.id === profile.id);
+    if (latest && (latest.revision ?? 0) > (profile.revision ?? 0)) profile = latest;
+    if (featured?.id === profile.id && (featured.revision ?? 0) > (profile.revision ?? 0)) profile = featured;
     featured = profile;
     sync();
     if (!Cabin.byId(profile.id)) {
@@ -10149,7 +10176,8 @@ window.CabinCommunity = (() => {
       const b=H.byId(id);if(!b)return;
       title((b.community?'小屋投稿':'在店伙伴')+'  /  '+b.job,b.name);
       let work=body.querySelector('.bot-work');
-      if(!work||work.dataset.botId!==id){
+      const revision=String(b.revision??0);
+      if(!work||work.dataset.botId!==id||work.dataset.revision!==revision){
         const outfit=b.community||publicSite?'':'<button type="button" class="quiet bot-change-outfit" data-act="outfit">换装</button>';
         body.innerHTML=`<div class="bot-card">
           <div class="bot-intro">
@@ -10165,7 +10193,7 @@ window.CabinCommunity = (() => {
           </footer>
         </div>`;
         body.querySelector('.bot-card-preview img').src=CabinCharacters.portrait(b.shape,b.color,b.outfit);
-        work=body.querySelector('.bot-work');work.dataset.botId=id;
+        work=body.querySelector('.bot-work');work.dataset.botId=id;work.dataset.revision=revision;
         CabinGrokTransfer.mount(body.querySelector('.grok-transfer'),b,{songs,drinks,rhymeBook,room:H.room},copyToClipboard,download);
       }
       work.innerHTML=readyRole(b);

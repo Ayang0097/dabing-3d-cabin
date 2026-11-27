@@ -36,7 +36,7 @@ def build(output):
     classroom_version = asset_version(ROOT / "classroom" / "assets" / "room.css")
     upload_assets = {
         filename: asset_version(DEPLOYMENT / filename)
-        for filename in ("public-upload.js", "upload.css", "upload-scene.webp")
+        for filename in ("bot-api.js", "public-upload.js", "owner-bots.js", "upload.css", "upload-scene.webp")
     }
     upload_dependencies = {filename: asset_version(ROOT / filename) for filename in UPLOAD_SHARED_SCRIPTS}
     upload_page = DEPLOYMENT / "upload.html"

@@ -452,7 +452,8 @@
       const b=H.byId(id);if(!b)return;
       title((b.community?'小屋投稿':'在店伙伴')+'  /  '+b.job,b.name);
       let work=body.querySelector('.bot-work');
-      if(!work||work.dataset.botId!==id){
+      const revision=String(b.revision??0);
+      if(!work||work.dataset.botId!==id||work.dataset.revision!==revision){
         const outfit=b.community||publicSite?'':'<button type="button" class="quiet bot-change-outfit" data-act="outfit">换装</button>';
         body.innerHTML=`<div class="bot-card">
           <div class="bot-intro">
@@ -468,7 +469,7 @@
           </footer>
         </div>`;
         body.querySelector('.bot-card-preview img').src=CabinCharacters.portrait(b.shape,b.color,b.outfit);
-        work=body.querySelector('.bot-work');work.dataset.botId=id;
+        work=body.querySelector('.bot-work');work.dataset.botId=id;work.dataset.revision=revision;
         CabinGrokTransfer.mount(body.querySelector('.grok-transfer'),b,{songs,drinks,rhymeBook,room:H.room},copyToClipboard,download);
       }
       work.innerHTML=readyRole(b);

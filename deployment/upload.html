@@ -9,6 +9,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="upload.css">
   <script src="site-config.js" defer></script>
+  <script src="bot-api.js" defer></script>
   <script src="vendor/three.min.js" defer></script>
   <script src="bot-shapes.js" defer></script>
   <script src="bot-packet.js" defer></script>
@@ -19,15 +20,36 @@
     <img class="upload-backdrop" src="upload-scene.webp" width="1920" height="1080" alt="" fetchpriority="high">
     <a class="upload-back" href="./"><span aria-hidden="true">←</span> 回小屋</a>
     <section class="upload-sheet" aria-labelledby="uploadTitle">
-      <h1 id="uploadTitle">上传我的 BOT</h1>
-      <form class="upload-form" method="post" data-mode="upload">
+      <div class="upload-heading">
+        <h1 id="uploadTitle">上传我的 BOT</h1>
+        <a class="upload-switch" id="uploadSwitch" href="./upload.html?mode=edit">我的 BOT</a>
+      </div>
+      <form class="upload-form" id="myBotsAccess" method="post" hidden>
+        <div class="upload-field">
+          <label for="personalKey">个人密钥</label>
+          <input id="personalKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主发给你的个人密钥">
+        </div>
+        <button class="upload-submit" type="submit" disabled>查看我的 BOT</button>
+      </form>
+      <div class="upload-editor-tools" id="myBotsTools" hidden>
+        <div class="upload-field">
+          <label for="myBotChoice">选择要编辑的 BOT</label>
+          <select id="myBotChoice"></select>
+        </div>
+        <div class="upload-actions">
+          <button class="upload-quiet" id="moreMyBots" type="button" hidden>更多 BOT</button>
+          <button class="upload-quiet" id="switchPersonalKey" type="button">退出个人管理</button>
+        </div>
+      </div>
+      <form class="upload-form" method="post" data-mode="upload" hidden>
         <div class="upload-fields upload-source">
-          <div class="upload-field">
+          <div class="upload-field" id="uploadKeyField">
             <label for="uploadKey">上传密钥</label>
-            <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥">
+            <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥" aria-describedby="uploadKeyHint">
+            <p id="uploadKeyHint" class="upload-hint">用个人密钥投稿，可在「我的 BOT」编辑。</p>
           </div>
           <div class="upload-field">
-            <label for="templateUrl">BOT 链接</label>
+            <label for="templateUrl" id="templateLabel">BOT 链接</label>
             <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="uploadLinkHint">
             <p id="uploadLinkHint" class="upload-hint"><a href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取 Grok 公开分享链接？</a></p>
           </div>
@@ -63,7 +85,7 @@
         </fieldset>
         <button class="upload-submit" type="submit" disabled>上传并公开<span aria-hidden="true">→</span></button>
       </form>
-      <p class="upload-note">上传后，小屋访客可以复制这位 BOT。</p>
+      <p class="upload-note" id="uploadNote">上传后，小屋访客可以复制这位 BOT。</p>
       <p id="post-status" class="upload-status" role="status"></p>
       <noscript><p class="upload-status">请启用 JavaScript 上传 BOT。</p></noscript>
     </section>

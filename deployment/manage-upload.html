@@ -2,34 +2,90 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#263834">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#261a13">
   <meta name="referrer" content="no-referrer">
-  <title>设置上传密钥 · 大冰的小屋</title>
+  <title>屋主管理 · 大冰的小屋</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="house.css">
+  <link rel="stylesheet" href="upload.css">
   <script src="site-config.js" defer></script>
-  <script src="public-upload.js" defer></script>
+  <script src="bot-api.js" defer></script>
+  <script src="owner-bots.js" defer></script>
 </head>
-<body>
-  <main class="post-page">
-    <div class="post-sheet">
-      <a class="post-back" href="./">← 大冰的小屋</a>
-      <h1>设置上传密钥</h1>
-      <p>屋主可以为投稿者设置新密钥。保存后，旧上传密钥立即失效。</p>
-      <form class="public-upload-form" method="post" data-mode="manage">
-        <label>屋主密钥
+<body class="cabin-upload">
+  <main class="upload-page">
+    <img class="upload-backdrop" src="upload-scene.webp" width="1920" height="1080" alt="" fetchpriority="high">
+    <a class="upload-back" href="./">回小屋</a>
+    <section class="upload-sheet" aria-labelledby="ownerTitle">
+      <div class="upload-heading"><h1 id="ownerTitle">屋主管理</h1></div>
+      <form class="upload-form" id="ownerAccess" method="post">
+        <div class="upload-field">
+          <label for="ownerKey">屋主密钥</label>
           <input id="ownerKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
-        </label>
-        <label>新上传密钥
-          <input id="uploadKey" type="password" required minlength="16" maxlength="256" autocomplete="new-password" spellcheck="false" autocapitalize="none">
-        </label>
-        <p>使用 16 到 256 个字符。把上传密钥交给你允许投稿的人。</p>
-        <button class="act" type="submit" disabled>保存上传密钥</button>
+        </div>
+        <button class="upload-submit" type="submit" disabled>打开管理</button>
       </form>
-      <p id="post-status" class="post-status" role="status"></p>
-      <noscript><p>请启用 JavaScript 设置上传密钥。</p></noscript>
-    </div>
+      <div class="upload-owner" id="ownerTools" hidden>
+        <section aria-labelledby="personalHeading">
+          <h2 id="personalHeading">个人密钥</h2>
+          <form class="upload-action-row" id="issueMember" method="post">
+            <div class="upload-field">
+              <label for="memberLabel">成员姓名或备注</label>
+              <input id="memberLabel" type="text" required maxlength="40">
+            </div>
+            <button class="upload-submit" type="submit">发放密钥</button>
+          </form>
+          <div class="upload-action-row upload-issued" id="keyResult" hidden>
+            <div class="upload-field">
+              <label for="issuedKey">本次发放的个人密钥</label>
+              <input id="issuedKey" type="text" readonly autocomplete="off" spellcheck="false">
+            </div>
+            <button class="upload-quiet" id="copyIssuedKey" type="button">复制密钥</button>
+          </div>
+          <form class="upload-action-row" id="rotateMember" method="post">
+            <div class="upload-field">
+              <label for="rotateChoice">已有成员</label>
+              <select id="rotateChoice" required></select>
+            </div>
+            <button class="upload-quiet" type="submit">重发密钥</button>
+          </form>
+          <p class="upload-hint">密钥只在发放时显示。重发会使旧密钥失效，成员名下的 BOT 会保留。</p>
+        </section>
+        <section aria-labelledby="assignHeading">
+          <h2 id="assignHeading">绑定旧投稿</h2>
+          <form class="upload-form" id="assignBot" method="post">
+            <div class="upload-fields">
+              <div class="upload-field">
+                <label for="legacyBot">待绑定的 BOT</label>
+                <select id="legacyBot" required></select>
+              </div>
+              <div class="upload-field">
+                <label for="assignChoice">归属成员</label>
+                <select id="assignChoice" required></select>
+              </div>
+            </div>
+            <div class="upload-actions">
+              <button class="upload-quiet" type="submit">确认归属</button>
+              <button class="upload-quiet" id="moreLegacy" type="button" hidden>更多旧投稿</button>
+            </div>
+          </form>
+        </section>
+        <details>
+          <summary>共用投稿密钥</summary>
+          <form class="upload-action-row" id="sharedKeyForm" method="post">
+            <div class="upload-field">
+              <label for="sharedKey">新共用密钥</label>
+              <input id="sharedKey" type="password" required minlength="16" maxlength="256" autocomplete="new-password" spellcheck="false" autocapitalize="none">
+            </div>
+            <button class="upload-quiet" type="submit">保存共用密钥</button>
+          </form>
+          <p class="upload-hint">用共用密钥上传的 BOT 由屋主确认归属。</p>
+        </details>
+        <button class="upload-quiet" id="ownerExit" type="button">退出管理</button>
+      </div>
+      <p id="ownerStatus" class="upload-status" role="status"></p>
+      <noscript><p class="upload-status">请启用 JavaScript 使用屋主管理。</p></noscript>
+    </section>
   </main>
 </body>
 </html>
