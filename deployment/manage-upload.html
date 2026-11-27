@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#263834">
+  <meta name="referrer" content="no-referrer">
+  <title>设置上传密钥 · 大冰的小屋</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="house.css">
+  <script src="site-config.js" defer></script>
+  <script src="public-upload.js" defer></script>
+</head>
+<body>
+  <main class="post-page">
+    <div class="post-sheet">
+      <a class="post-back" href="./">← 大冰的小屋</a>
+      <h1>设置上传密钥</h1>
+      <p>屋主可以为投稿者设置新密钥。保存后，旧上传密钥立即失效。</p>
+      <form class="public-upload-form" method="post" data-mode="manage">
+        <label>屋主密钥
+          <input id="ownerKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
+        </label>
+        <label>新上传密钥
+          <input id="uploadKey" type="password" required minlength="16" maxlength="256" autocomplete="new-password" spellcheck="false" autocapitalize="none">
+        </label>
+        <p>使用 16 到 256 个字符。把上传密钥交给你允许投稿的人。</p>
+        <button class="act" type="submit" disabled>保存上传密钥</button>
+      </form>
+      <p id="post-status" class="post-status" role="status"></p>
+      <noscript><p>请启用 JavaScript 设置上传密钥。</p></noscript>
+    </div>
+  </main>
+</body>
+</html>

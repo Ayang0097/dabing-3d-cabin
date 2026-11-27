@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#263834">
+  <title>投稿 Bot · 大冰的小屋</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/house.css">
+  <script src="/bot-packet.js" defer></script>
+  <script src="/community-submit.js" defer></script>
+</head>
+<body>
+  <main class="post-page">
+    <div class="post-sheet">
+      <a class="post-back" href="/">← 大冰的小屋</a>
+      <section id="post-invite" hidden>
+        <h1>受邀投稿</h1>
+        <p id="post-invite-help">输入屋主发给你的邀请码。验证后，在这个浏览器里就能从 Grok 一键投稿。</p>
+        <form id="post-invite-form" method="post" action="/api/community/invite">
+          <label for="post-invite-code">投稿邀请码</label>
+          <input id="post-invite-code" type="password" autocomplete="off" spellcheck="false" autocapitalize="none" maxlength="128" required aria-describedby="post-invite-help post-status">
+          <button class="act" id="post-invite-verify" type="submit">验证邀请码</button>
+        </form>
+      </section>
+      <section id="post-setup" hidden>
+        <h1>带你的 Bot 来小屋</h1>
+        <p>先在 Grok Bot 里保存一次投稿技能。以后打开想投稿的 Bot，说「把这个 Bot 投稿到大冰的小屋」，点回复里的链接就能公开入屋。</p>
+        <div class="grok-actions">
+          <a class="grok-launch" id="post-grok" hidden>在 Grok 开启投稿 ↗</a>
+          <button class="quiet" id="post-copy" type="button">复制投稿指令</button>
+        </div>
+        <textarea id="post-setup-text" aria-label="投稿技能指令" readonly rows="6" hidden></textarea>
+      </section>
+      <section id="post-preview" hidden>
+        <h1 id="post-name"></h1>
+        <p class="post-job" id="post-job"></p>
+        <details class="exchange-alternate">
+          <summary>将公开的工作指令</summary>
+          <p class="grok-imported-instructions" id="post-instructions"></p>
+        </details>
+        <form id="post-form">
+          <button class="act" type="submit" id="post-confirm" disabled>一键投稿并公开</button>
+        </form>
+      </section>
+      <p id="post-status" class="post-status" role="status"></p>
+      <button type="button" class="quiet" id="post-retry" hidden>重新检查投稿资格</button>
+      <noscript><p>请启用 JavaScript 验证邀请码并投稿。你也可以点上方「大冰的小屋」进屋逛逛。</p></noscript>
+    </div>
+  </main>
+</body>
+</html>

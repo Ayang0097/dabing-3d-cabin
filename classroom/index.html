@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#211a14">
+  <title>且曼教室 · 大冰的小屋</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="assets/room.css">
+  <script src="../vendor/three.min.js" defer></script>
+  <script src="../bot-shapes.js" defer></script>
+  <script src="assets/workshop.js" defer></script>
+  <script src="assets/scene.js" defer></script>
+  <script src="assets/view.js" defer></script>
+</head>
+<body>
+  <main>
+    <section id="classroom" class="classroom" aria-labelledby="room-title">
+      <header class="room-header">
+        <h1 id="room-title" tabindex="-1">且曼教室</h1>
+        <div class="room-controls">
+          <a class="crumb" id="back" href="../"><span aria-hidden="true">←</span> 回小屋</a>
+        </div>
+      </header>
+      <section class="room-frame" aria-label="教室全屋视角">
+        <canvas id="room" aria-hidden="true"></canvas>
+        <div id="seat-map" role="list" aria-label="教室座位"></div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
