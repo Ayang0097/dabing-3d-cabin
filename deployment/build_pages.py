@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DEPLOYMENT = ROOT / "deployment"
 LOCAL_SCRIPTS = {"bot-creator.js", "grok-exchange.js"}
 UPLOAD_LINK = 'href="https://ayang0097.github.io/dabing-3d-cabin/upload.html" target="_blank" rel="noopener"'
-UPLOAD_SHARED_SCRIPTS = ("vendor/three.min.js", "bot-shapes.js", "bot-packet.js")
+UPLOAD_SHARED_SCRIPTS = (
+    "vendor/three.min.js", "kit.js", "bot-shapes.js", "bot-diy.js", "bot-outfit.js",
+    "bot-accessories.js", "bot-packet.js",
+)
 
 
 def asset_version(path):

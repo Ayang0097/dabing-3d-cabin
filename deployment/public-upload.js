@@ -28,13 +28,19 @@
   let lastSubmission;
   let requestId;
   let profileLookup;
-  const setAppearance = mountAppearance();
+  const appearance = mountAppearance();
 
   function mountAppearance() {
-    const {shapes, colors, portrait} = CabinBotArt;
+    const {shapes, colors} = CabinBotArt;
+    const {portrait,mountOutfitControls} = CabinBotAccessories;
     const swatches = $('botColors');
     const currentColor = $('botColorName');
     const preview = $('botPreview');
+    const view = $('botPreviewTurn');
+    const wardrobe = $('botWardrobe');
+    const panel = $('botOutfit');
+    const outfit = mountOutfitControls(panel,'public-outfit');
+    let renderer, rear = false;
 
     function swatch(color, checked) {
       const label = document.createElement('label');
@@ -59,13 +65,28 @@
     function updatePreview() {
       const color = form.elements.botColor.value;
       currentColor.textContent = colors.find(choice => choice.value === color)?.name || '原有颜色';
-      preview.src = portrait(botShape.value, color);
+      const selected = outfit.read();
+      const dressed = Object.values(selected).some(value => value !== 'none');
+      if (dressed && renderer === undefined) {
+        try {
+          renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+          renderer.setSize(176,176,false);
+        } catch { renderer = null; }
+      }
+      view.hidden = selected.back !== 'case' || !renderer;
+      if (view.hidden) rear = false;
+      view.textContent = rear ? '看正面' : '看背面';
+      preview.alt = rear ? 'BOT 背面预览' : 'BOT 正面预览';
+      preview.src = portrait(botShape.value, color, selected, botName.value.trim() || 'Grok BOT', rear, renderer);
     }
     botShape.addEventListener('change', updatePreview);
     swatches.addEventListener('change', updatePreview);
+    panel.addEventListener('change', updatePreview);
+    botName.addEventListener('change', updatePreview);
+    view.addEventListener('click', () => {rear = !rear; updatePreview();});
     updatePreview();
     let custom;
-    return ({shape, color}) => {
+    function set({shape, color, outfit:stored}) {
       botShape.value = shapes.some(option => option.value === shape) ? shape : shapes[0].value;
       custom?.remove();
       custom = null;
@@ -73,8 +94,12 @@
         custom = swatch({name:'原有颜色', value:color}, true);
       }
       form.elements.botColor.value = /^#[a-f0-9]{6}$/i.test(color) ? color : colors[0].value;
+      outfit.set(stored);
+      if (Object.values(outfit.read()).some(value => value !== 'none')) wardrobe.open = true;
+      rear = false;
       updatePreview();
-    };
+    }
+    return {set, read:outfit.read, preview:updatePreview};
   }
 
   function setStatus(message, error = false, field) {
@@ -162,6 +187,7 @@
         field.prefilled = true;
       }
       showProfileStatus();
+      if (appearance.read().sign === 'name') appearance.preview();
       updateSubmit();
     }, 320);
   }
@@ -211,7 +237,7 @@
       const legacyJob = ['Grok 模板', 'Grok 助手'].includes(activeBot.job) ? '' : activeBot.job;
       setProfileField(introField, activeBot.introduction ?? legacyJob ?? '', activeBot.introduction !== undefined);
       refreshProfile();
-      setAppearance(activeBot);
+      appearance.set(activeBot);
     }
     updateSubmit();
   }
@@ -333,6 +359,7 @@
       templateUrl,
       shape:botShape.value,
       color:form.elements.botColor.value,
+      outfit:appearance.read(),
     };
   }
 

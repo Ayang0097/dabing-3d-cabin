@@ -244,7 +244,7 @@ window.CabinCharacters = (() => {
       benchMix:0,benchLimit:Infinity,seatedHeightScale:1,
       seat:null,seatMotion:null,hold:null,walk:null,sitMix:0,stride:0,hasCup:false};
     const outfit=accessories.normalize(d.outfit);
-    dress(bot,outfit,accessories.build(d.shape,body,outfit));
+    dress(bot,outfit,accessories.build(d.shape,body,outfit,d.name));
     return bot;
   }
   function meshFootprint(mesh,height,transform){
@@ -273,21 +273,32 @@ window.CabinCharacters = (() => {
     if(outfit.children.length){
       outfit.updateWorldMatrix(true,true);
       const toOutfit=outfit.matrixWorld.clone().invert();
-      outfit.traverse(mesh=>{
-        if(!mesh.isMesh)return;
-        fromAccessory.multiplyMatrices(toOutfit,mesh.matrixWorld);
-        reach=Math.max(reach,meshFootprint(mesh,height,fromAccessory));
-      });
+      for(const part of outfit.children){
+        if(part.name==='effect')continue;
+        part.traverse(mesh=>{
+          if(!mesh.isMesh)return;
+          fromAccessory.multiplyMatrices(toOutfit,mesh.matrixWorld);
+          reach=Math.max(reach,meshFootprint(mesh,height,fromAccessory));
+        });
+      }
     }
     return reach*bot.scale+.002;
   }
   function dress(b,outfit,accessoryModel){
-    const bounds=new T.Box3().setFromObject(accessoryModel);
+    const bounds=new T.Box3();
+    for(const part of accessoryModel.children){
+      if(part.name!=='effect')bounds.expandByObject(part);
+    }
     const extraY=Math.max(0,bounds.max.y-b.body.bounds.max.y)*b.scale;
     const reachX=Math.max(bounds.max.x,-bounds.min.x)*2*b.scale;
     const reachZ=Math.max(bounds.max.z,-bounds.min.z)*2*b.scale;
     b.accessoryModel?.removeFromParent();
     b.accessoryModel=accessoryModel;b.outfit=outfit;
+    b.eyeExpression=accessoryModel.getObjectByName('eyes');
+    b.eyesCovered=accessories.obscuresEyes(outfit.glasses);
+    b.fireflies=accessoryModel.getObjectByName('effect');
+    b.lantern=accessoryModel.getObjectByName('carry');
+    accessories.poseEyes(b.eyes,b.eyeExpression,outfit.eyes,0,0,b.eyesCovered);
     if(accessoryModel.children.length)b.frame.add(accessoryModel);
     b.outfitHeight=b.height+extraY;
     updateVisualHeight(b);
@@ -338,7 +349,14 @@ window.CabinCharacters = (() => {
     const footprint=(1-.20*jump*step)*(1-.56*seated);
     b.shade.scale.set(footprint,footprint,1);
     const blinkPhase=(t+b.phase*1.7)%4.8, blink=Math.max(0,1-Math.abs(blinkPhase-.105)/.105);
-    for(const eye of b.eyes)eye.morphTargetInfluences[0]=blink*blink*(3-2*blink);
+    const blinkEase=blink*blink*(3-2*blink);
+    const wink=b.outfit.eyes==='wink'?1-T.MathUtils.smoothstep(Math.abs(blinkPhase-.16),.01,.16):0;
+    accessories.poseEyes(b.eyes,b.eyeExpression,b.outfit.eyes,blinkEase,wink,b.eyesCovered);
+    if(b.fireflies){
+      b.fireflies.rotation.y=Math.sin(t*.65+b.phase)*.23;
+      b.fireflies.position.y=Math.sin(t*1.7+b.phase)*.041;
+    }
+    if(b.lantern)b.lantern.visible=!(b.hasCup||guitarCue||kitCue||beating||serving);
     if(b.props.voice){
       const mouth=b.props.voice.morphTargetInfluences;
       mouth[0]=T.MathUtils.damp(mouth[0],voiceCue??0,20,dt);

@@ -172,6 +172,39 @@
 }
 
 .upload-preview img { display: block; width: min(92px, 100%); height: auto; }
+.upload-preview { position: relative; }
+.upload-preview-turn {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  padding: 3px 5px;
+  border: 1px solid #aa8e6d;
+  border-radius: 4px;
+  background: #f4e6cf;
+  color: var(--wood);
+  font-size: 12px;
+  cursor: pointer;
+}
+.upload-wardrobe {
+  margin-top: 12px;
+  border-top: 1px solid #a9825350;
+  padding-top: 10px;
+}
+.upload-wardrobe summary { color: var(--wood); font-weight: 650; cursor: pointer; }
+.upload-outfit { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 12px; margin-top: 10px; }
+.upload-outfit > div { min-width: 0; display: grid; gap: 4px; }
+.upload-outfit label { font-size: 14px; font-weight: 650; }
+.upload-outfit select {
+  width: 100%;
+  min-height: 41px;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid #ac8a66;
+  border-radius: 5px;
+  background: #f9efde;
+  color: var(--ink);
+}
 .upload-shape { grid-area: shape; }
 .upload-palette { grid-area: palette; }
 .upload-palette legend { padding: 0; font-size: 15px; font-weight: 650; }

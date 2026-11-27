@@ -1,21 +1,29 @@
 window.CabinBotAccessories = (() => {
   const {T,mat,mesh,batch}=HouseKit;
-  const options={
-    scarf:{name:'围巾',styles:{knit:'砖红针织',stripe:'松绿条纹',kerchief:'姜黄方巾'}},
-    glasses:{name:'眼镜',styles:{round:'复古圆框',square:'靛蓝方框',amber:'琥珀细框'}},
-    hat:{name:'帽子',styles:{beanie:'毛球针织帽',beret:'橄榄贝雷帽',bucket:'焦糖渔夫帽'}},
-    hair:{name:'发型',styles:{side:'斜刘海',curl:'小卷毛',bun:'丸子头'}}
-  };
-  const categories=Object.keys(options);
+  const diy=CabinBotDIY;
+  const {options,categories,normalize} = CabinOutfit;
   const templates=new Map(),portraits=new Map(),turn=Math.PI*2;
-  const normalize = raw => Object.fromEntries(categories.map(key => {
-    const style=raw?.[key];
-    return [key,typeof style==='string'&&Object.hasOwn(options[key].styles,style)?style:'none'];
-  }));
+
+  function mountOutfitControls(panel,prefix,initial){
+    const fields=Object.entries(options).map(([key,{name,styles}])=>{
+      const field=document.createElement('div'),label=document.createElement('label'),select=document.createElement('select');
+      select.id=prefix+'-'+key;select.name='outfit-'+key;
+      label.htmlFor=select.id;label.textContent=name;
+      select.add(new Option(key==='eyes'?'默认':'无','none'));
+      for(const [id,title] of Object.entries(styles))select.add(new Option(title,id));
+      field.append(label,select);panel.append(field);
+      return [key,select];
+    });
+    const set=raw=>{
+      const outfit=normalize(raw);
+      for(const [key,select] of fields)select.value=outfit[key];
+    };
+    set(initial);
+    return {set,read:()=>Object.fromEntries(fields.map(([key,select])=>[key,select.value]))};
+  }
 
   const cloth=mat(0xffffff,{roughness:.91,vertexColors:true,side:T.DoubleSide});
-  const hairMaterial=mat(0xffffff,{roughness:.69,vertexColors:true,side:T.DoubleSide});
-  const halfPi=Math.PI/2, clamp=T.MathUtils.clamp, lerp=T.MathUtils.lerp;
+  const clamp=T.MathUtils.clamp, lerp=T.MathUtils.lerp;
   const profileCache=new Map();
 
   function faceProfile(body){
@@ -23,26 +31,17 @@ window.CabinBotAccessories = (() => {
     const centres=strokes.map(points=>new T.Box3().setFromBufferAttribute(points).getCenter(new T.Vector3()));
     const slope=clamp(Math.atan2(centres[1].y-centres[0].y,centres[1].x-centres[0].x),-.30,.30);
     const axis=new T.Vector2(Math.cos(slope),Math.sin(slope)),up=new T.Vector2(-axis.y,axis.x);
-    let top=0,left=Infinity,right=-Infinity;
     const outlines=strokes.map(points=>{
       const bound=new T.Box2();
       const uv=new T.Vector2();
       for(let i=0;i<points.count;i++){
-        const x=points.getX(i),y=points.getY(i),z=points.getZ(i),azimuth=Math.atan2(x,z);
+        const x=points.getX(i),y=points.getY(i);
         bound.expandByPoint(uv.set(axis.x*x+axis.y*y,up.x*x+up.y*y));
-        top=Math.max(top,Math.atan2(y,Math.hypot(x,z)));
-        left=Math.min(left,azimuth);right=Math.max(right,azimuth);
       }
       return {center:bound.getCenter(new T.Vector2()),size:bound.getSize(new T.Vector2())};
     });
-    return {top,azimuth:(left+right)*.5,axis,up,outlines};
+    return {axis,up,outlines};
   }
-  function forehead(face,angle,back,clearance){
-    const relative=Math.atan2(Math.sin(angle-face.azimuth),Math.cos(angle-face.azimuth));
-    const front=1-T.MathUtils.smootherstep(Math.abs(relative),.55,1.30);
-    return back+Math.max(0,face.top+clearance-back)*front;
-  }
-
   function fitSurface(body,point,angle,elevation,relief){
     body.surface(angle,elevation,point);
     point.multiplyScalar(1+relief/point.length());
@@ -133,11 +132,112 @@ window.CabinBotAccessories = (() => {
     }
   }
 
+  const glassesStyles={
+    round:{color:0x604339,radius:.0105,profile:.79},
+    square:{color:0x46576b,radius:.011,profile:.49},
+    amber:{color:0x9b6244,radius:.0078,profile:.67,metalness:.34},
+    blackSun:{color:0x25252a,radius:.014,profile:.47,width:.140,height:.094,spacing:.165,lens:[0x151822,0x46515e]},
+    teaSun:{color:0xa76738,radius:.0125,profile:1,width:.116,height:.116,spacing:.150,lens:[0x33201c,0x86563c]}
+  };
+  const tintedGlass=new T.MeshPhysicalMaterial({
+    color:0xffffff,vertexColors:true,roughness:.20,metalness:.24,clearcoat:1,clearcoatRoughness:.12,
+    envMapIntensity:.45,side:T.DoubleSide
+  });
+
+  function tintedLens(g,pointAt,tones){
+    const segments=40,bands=6;
+    const positions=[],colors=[],indices=[];
+    const dark=new T.Color(tones[0]),light=new T.Color(tones[1]),color=new T.Color();
+    const addPoint=(angle,scale)=>{
+      const depth=.008*(1-scale*scale);
+      const point=pointAt(angle,scale,depth);
+      positions.push(point.x,point.y,point.z);
+      const across=Math.cos(angle)*scale,height=Math.sin(angle)*scale;
+      const reflection=Math.exp(-((across+.38-height*.90)**2)*23);
+      color.copy(dark).lerp(light,.14+.30*(height+1)*.5+.20*reflection);
+      colors.push(color.r,color.g,color.b);
+    };
+    addPoint(0,0);
+    for(let band=1;band<=bands;band++){
+      const start=1+(band-1)*segments;
+      for(let i=0;i<segments;i++){
+        addPoint(i/segments*turn,band/bands);
+        const a=start+i,b=start+(i+1)%segments;
+        if(band===1)indices.push(0,a,b);
+        else indices.push(a-segments,a,b,a-segments,b,b-segments);
+      }
+    }
+    const geometry=new T.BufferGeometry();
+    geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+    geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const lens=new T.Mesh(geometry,tintedGlass);
+    lens.name='tinted-lens';
+    g.add(lens);
+  }
+
+  function frameLine(g,finish,points,radius,closed=false,steps=20,sides=8){
+    const path=new T.CatmullRomCurve3(points,closed);
+    g.add(new T.Mesh(new T.TubeGeometry(path,steps,radius,sides,closed),finish));
+  }
+
+  function sunglasses(g,body,face,spec){
+    const {color,radius,profile,lens,width,height,spacing}=spec;
+    const scale=clamp((body.bounds.max.x-body.bounds.min.x)/1.02,.79,1.06);
+    const rx=width*scale,ry=height*scale,offset=spacing*scale;
+    const y=face.outlines.reduce((sum,{center})=>sum+face.axis.y*center.x+face.up.y*center.y,0)*.5-.024;
+    const finish=mat(color,{roughness:.31,metalness:.21});
+    const pointOnFrame=(centre,angle,factor,z)=>{
+      const c=Math.cos(angle),s=Math.sin(angle);
+      return new T.Vector3(centre+rx*factor*Math.sign(c)*Math.abs(c)**profile,
+        y+ry*factor*Math.sign(s)*Math.abs(s)**profile,z);
+    };
+
+    // A common front plane preserves both lens outlines. Fit its depth to the shell.
+    let z=body.front(0,y+.036);
+    for(const centre of [-offset,offset]){
+      for(const factor of [0,.45,.75,1]){
+        for(let i=0;i<24;i++){
+          const point=pointOnFrame(centre,i/24*turn,factor,0);
+          z=Math.max(z,body.front(point.x,point.y));
+        }
+      }
+    }
+    z+=.021;
+    for(const side of [-1,1]){
+      const centre=side*offset;
+      const outline=(angle,factor=1,depth=0)=>pointOnFrame(centre,angle,factor,z+depth);
+      const frame=Array.from({length:48},(_,i)=>outline(i/48*turn));
+      frameLine(g,finish,frame,radius,true,52);
+      tintedLens(g,outline,lens);
+
+      const corner=outline(side>0?.22:Math.PI-.22);
+      const elbow=new T.Vector3(corner.x+side*.022,corner.y,z-.047);
+      const elevation=Math.atan2(corner.y,Math.hypot(corner.x,corner.z));
+      const arm=[corner,elbow];
+      for(const [angle,drop,clearance] of [[1.04,.015,.029],[1.42,.070,.017],[1.81,.129,.008]]){
+        arm.push(fitSurface(body,new T.Vector3(),side*angle,elevation-drop,clearance));
+      }
+      frameLine(g,finish,arm,radius*.72,false,32);
+    }
+
+    const bridgeX=offset-rx*.965;
+    frameLine(g,finish,[
+      new T.Vector3(-bridgeX,y+.027*scale,z),
+      new T.Vector3(0,y+.046*scale,z+.005),
+      new T.Vector3(bridgeX,y+.027*scale,z)
+    ],radius*.81,false,14);
+  }
+
   function glasses(g,body,style,face){
-    const palette={round:0x604339,square:0x46576b,amber:0x9b6244};
-    const finish=mat(palette[style],{roughness:.46,metalness:style==='amber'?.34:.16});
-    const radius={round:.0105,square:.011,amber:.0078}[style];
-    const profile={round:.79,square:.49,amber:.67}[style];
+    const spec=glassesStyles[style];
+    if(spec.lens){
+      sunglasses(g,body,face,spec);
+      return;
+    }
+    const {color,radius,profile,metalness=.16}=spec;
+    const finish=mat(color,{roughness:.46,metalness});
     const {axis,up,outlines}=face;
     const keyPoint=(u,v,depth=.022)=>{
       const x=axis.x*u+up.x*v,y=axis.y*u+up.y*v;
@@ -145,14 +245,16 @@ window.CabinBotAccessories = (() => {
     };
     const rx=(outlines[0].size.x+outlines[1].size.x)*.25+.012;
     const ry=Math.max(...outlines.map(o=>o.size.y))*.5+.019;
-    const tube=(path,r,loop=false,steps=14)=>g.add(new T.Mesh(
-      new T.TubeGeometry(new T.CatmullRomCurve3(path,loop),steps,r,6,loop),finish));
-    const rim=(center,a)=>{
-      const c=Math.cos(a),s=Math.sin(a);
-      return keyPoint(center.x+rx*Math.sign(c)*Math.abs(c)**profile,center.y+ry*Math.sign(s)*Math.abs(s)**profile);
-    };
+    const tube=(path,r,loop=false,steps=14)=>frameLine(g,finish,path,r,loop,steps,6);
     const centres=outlines.map(o=>o.center);
-    for(const center of centres)tube(Array.from({length:32},(_,i)=>rim(center,i/32*turn)),radius,true,36);
+    for(const center of centres){
+      const outline=(angle,scale=1,depth=.022)=>{
+        const c=Math.cos(angle),s=Math.sin(angle);
+        return keyPoint(center.x+rx*scale*Math.sign(c)*Math.abs(c)**profile,
+          center.y+ry*scale*Math.sign(s)*Math.abs(s)**profile,depth);
+      };
+      tube(Array.from({length:32},(_,i)=>outline(i/32*turn)),radius,true,36);
+    }
     const a=centres[0],b=centres[1],lift=ry*.42;
     const innerLeft=keyPoint(a.x+rx*.95,a.y+lift),innerRight=keyPoint(b.x-rx*.95,b.y+lift);
     const bridge=keyPoint((a.x+b.x)*.5,(a.y+b.y)*.5+lift+.010,.025);
@@ -169,107 +271,54 @@ window.CabinBotAccessories = (() => {
     }
   }
 
-  const capProfiles={
-    beanie:{edge:.58,clearance:.28,rise:.053,body:0xa15546,trim:0xd99074,seam:0x774237},
-    beret:{edge:.68,clearance:.24,rise:.030,body:0x60705a,trim:0x839478,seam:0x455744},
-    bucket:{edge:.63,clearance:.31,rise:.035,body:0xb78d61,trim:0xcb9b71,seam:0x846046}
+  const makers={
+    scarf,glasses,
+    hat(model,body,style){diy.headwear[style](model,body);},
+    eyes:diy.expression,
+    sign(model,body,style,face,name){
+      diy.plaque(model,body,style==='name'?name||'Bot':style==='note'?'♫':'小屋');
+    },
+    back:diy.guitarCase,
+    carry:diy.lantern,
+    effect:diy.fireflies
   };
-  function capEdge(face,style,angle){
-    const profile=capProfiles[style];
-    const lean=style==='beret'?.105*Math.sin(angle+.47):.036*Math.sin(angle-.38);
-    return forehead(face,angle,profile.edge+lean,profile.clearance);
-  }
-  function hat(g,body,style,face){
-    const spec=capProfiles[style],edge=a=>capEdge(face,style,a);
-    const base=new T.Color(spec.body),trim=new T.Color(spec.trim),seam=new T.Color(spec.seam);
-    fabricPatch(g,cloth,72,22,true,(u,t,point,color)=>{
-      const a=u*turn,foot=T.MathUtils.smoothstep(t,0,.075),dome=Math.sin(Math.PI*t);
-      const rib=style==='beanie'?.006*Math.cos(a*18)*(1-t*t):0;
-      const puff=style==='beret'?.055*dome:.019*dome;
-      const relief=-.007+foot*(.028+puff+rib);
-      fitSurface(body,point,a,lerp(edge(a),halfPi-.0004,t),relief);
-      point.y+=spec.rise*t*t;
-      if(style==='beret')point.x+=.044*T.MathUtils.smoothstep(t,.12,1);
-      const cuff=1-T.MathUtils.smoothstep(t,.16,.29);
-      const join=(1-T.MathUtils.smoothstep(t,.018,.12));
-      color.copy(base).lerp(trim,cuff*.37).lerp(seam,join*.61);
-      if(style==='beanie')color.multiplyScalar(1+.068*Math.cos(a*18)*(.48+.52*cuff));
-    });
-    if(style==='bucket'){
-      fabricPatch(g,cloth,72,10,true,(u,t,point,color)=>{
-        const a=u*turn,flare=Math.sin(Math.PI*t)**.78;
-        fitSurface(body,point,a,edge(a)+.020-.105*t,.004+.078*flare);
-        point.y-=.021*flare;
-        const hem=1-T.MathUtils.smoothstep(Math.abs(t-.51),.025,.165);
-        color.copy(base).lerp(seam,t*.38+hem*.23).lerp(trim,(1-t)*.29);
-      });
-    }else{
-      const top=fitSurface(body,new T.Vector3(),-.52,1.50,.023);
-      top.y+=spec.rise+(style==='beanie'?.031:.007);
-      if(style==='beanie'){
-        softDetail(g,cloth,top,[.060,.058,.061],trim,-.18,.13);
-      }else{
-        top.x+=.039;
-        softDetail(g,cloth,top,[.021,.024,.022],seam,0,.03);
-      }
-    }
-  }
-
-  function hair(g,body,style,face,cap){
-    const base=new T.Color(style==='curl'?0x64473d:0x67473b);
-    const shine=new T.Color(style==='curl'?0x936d53:0x9b7359),shadow=new T.Color(0x4d352d);
-    const covered=cap!=='none';
-    const low=a=>{
-      const wave=style==='curl'?.066*Math.cos(a*8-.72):.085*Math.sin(a-.42)+.027*Math.sin(a*3+.32);
-      const hairline=forehead(face,a,.43+wave,style==='side'?.14:.16);
-      if(!covered)return hairline;
-      return Math.max(forehead(face,a,.36,.128),Math.min(hairline,capEdge(face,cap,a)-.105));
-    };
-    fabricPatch(g,hairMaterial,76,24,true,(u,t,point,color)=>{
-      const a=u*turn,edge=low(a),rim=covered?capEdge(face,cap,a):halfPi;
-      const end=covered?Math.min(halfPi-.0004,rim+.085):halfPi-.0004;
-      const latitude=lerp(edge,end,t);
-      const phase=style==='side'?a*5+2.6*t:style==='curl'?a*9-3.9*t:a*9+.44*t;
-      const fade=Math.sin(Math.PI*t)**.68;
-      const ridge=Math.cos(phase),small=Math.cos(phase*2-.36);
-      const curl=style==='curl'?(.51+.49*ridge)*.020*fade:0;
-      const taper=T.MathUtils.smoothstep(t,0,.12);
-      const underRim=covered?1-T.MathUtils.smoothstep(latitude,rim-.035,rim+.062):1;
-      fitSurface(body,point,a,latitude,-.006+taper*underRim*(.029+(.006*ridge+.002*small)*fade+curl));
-      const contact=(1-T.MathUtils.smoothstep(t,.01,.135))*.49;
-      color.copy(base).lerp(shine,(.18+.13*ridge)*fade).lerp(shadow,contact);
-    });
-    if(style!=='bun')return;
-    const azimuth=covered?-1.99:-.59,altitude=covered?.59:1.46;
-    const tie=fitSurface(body,new T.Vector3(),azimuth,altitude,.034);
-    const clasp=new T.Color(0xaa7b5f);
-    if(!covered)tie.y+=.021;
-    softDetail(g,hairMaterial,tie,[.079,.058,.073],clasp,azimuth,.033);
-    const knot=tie.clone().addScaledVector(tie.clone().normalize(),covered?.044:.060);
-    const radius=covered?.092:.105;
-    softDetail(g,hairMaterial,knot,[radius,radius*.86,radius*.94],base,azimuth,.095);
-  }
-
-  const makers={scarf,glasses,hat,hair};
-  function build(shape,body,outfit) {
+  function build(shape,body,outfit,name='') {
     const group=new T.Group();
     for(const key of categories){
       const style=outfit[key];
-      if(style==='none')continue;
-      const cap=key==='hair'?outfit.hat:'none';
-      const id=[shape,key,style,cap].join('/');
+      if(style==='none'||(key==='eyes'&&style==='wink'))continue;
+      let variant='';
+      if(key==='sign'&&style==='name')variant=name;
+      if(key==='carry')variant=body.shell.material.color.getHexString();
+      const id=JSON.stringify([shape,key,style,variant]);
       if(!templates.has(id)){
         if(!profileCache.has(shape))profileCache.set(shape,faceProfile(body));
         const model=new T.Group();
-        makers[key](model,body,style,profileCache.get(shape),cap);
+        makers[key](model,body,style,profileCache.get(shape),name);
         model.traverse(o=>{if(o.isMesh)o.castShadow=false;});
-        batch(model);
+        if(key!=='eyes'&&key!=='effect')batch(model);
         templates.set(id,model);
+        if(templates.size>256)templates.delete(templates.keys().next().value);
       }
       const item=templates.get(id).clone(true);
       item.name=key;group.add(item);
     }
     return group;
+  }
+
+  const obscuresEyes=style=>Boolean(glassesStyles[style]?.lens);
+
+  function poseEyes(eyes,expression,style,blink,wink=blink,covered=false){
+    const standard=style!=='happy'&&style!=='curious';
+    eyes.forEach((eye,index)=>{
+      eye.visible=standard&&!covered;
+      eye.morphTargetInfluences[0]=blink;
+      if(style==='wink')eye.morphTargetInfluences[0]=index===0?wink:blink*(1-wink);
+    });
+    if(expression){
+      expression.visible=!covered;
+      expression.children.forEach(eye=>{eye.scale.y=1-.82*blink;});
+    }
   }
 
   let preview;
@@ -289,20 +338,22 @@ window.CabinBotAccessories = (() => {
     return {size,scene,camera,target,pixels,container,ctx,output,gamma};
   }
 
-  function portrait(shape,tint,raw) {
-    const outfit=normalize(raw),styles=Object.values(outfit),renderer=window.Cabin?.renderer;
+  function portrait(shape,tint,raw,name='',rear=false,renderer=window.Cabin?.renderer) {
+    const outfit=normalize(raw),styles=Object.values(outfit);
     if(!renderer||styles.every(style=>style==='none'))return CabinBotArt.portrait(shape,tint);
-    const key=[shape,tint,...styles].join('/');
+    const key=JSON.stringify([shape,tint,styles,outfit.sign==='name'?name:'',rear]);
     if(portraits.has(key))return portraits.get(key);
     preview??=previewResources();
     const {size,scene,camera,target,pixels,container,ctx,output,gamma}=preview;
     container.clear();
     const body=CabinBotArt.make(container,shape,tint);
-    container.add(build(shape,body,outfit));
+    const model=build(shape,body,outfit,name);
+    container.add(model);
+    poseEyes(body.eyes,model.getObjectByName('eyes'),outfit.eyes,0,1,obscuresEyes(outfit.glasses));
     const bounds=new T.Box3().setFromObject(container),center=bounds.getCenter(new T.Vector3());
     const extent=bounds.getSize(new T.Vector3()),half=Math.max(extent.y,extent.x)*.608;
     camera.left=camera.bottom=-half;camera.right=camera.top=half;
-    camera.position.copy(center).add(new T.Vector3(.74,.36,3));camera.lookAt(center);camera.updateProjectionMatrix();
+    camera.position.copy(center).add(new T.Vector3(.74,.36,rear?-3:3));camera.lookAt(center);camera.updateProjectionMatrix();
 
     const oldTarget=renderer.getRenderTarget(),oldColor=renderer.getClearColor(new T.Color()),oldAlpha=renderer.getClearAlpha();
     const shadowPending=renderer.shadowMap.needsUpdate;
@@ -328,5 +379,5 @@ window.CabinBotAccessories = (() => {
     portraits.set(key,url);
     return url;
   }
-  return {options,normalize,build,portrait};
+  return {options,normalize,build,portrait,poseEyes,obscuresEyes,mountOutfitControls};
 })();

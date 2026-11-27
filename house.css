@@ -531,6 +531,11 @@
 #botCreateForm .bc-portrait {width:76px;height:76px;object-fit:contain}
 #botOutfitForm .bc-stage {height:min(174px,25dvh)}
 #botOutfitForm .bc-portrait {width:min(162px,24dvh);height:auto;object-fit:contain}
+#drawerBody .bc-view {
+  position:absolute;right:6px;bottom:6px;min-height:28px;margin:0;padding:2px 7px;
+  border:1px solid var(--drawer-rule);border-radius:5px;background:#37271e;color:var(--drawer-ink);font-size:11px
+}
+#drawerBody #botOutfitForm .bc-view {right:10px;bottom:10px}
 #botCreateForm .bc-name {min-width:0}
 #botCreateForm label:not(.bc-choice),#botCreateForm legend {margin:0 0 7px;padding:0;color:var(--sand);font-weight:600;font-size:13px}
 #botCreateForm fieldset {min-width:0;margin:0;padding:0;border:0}

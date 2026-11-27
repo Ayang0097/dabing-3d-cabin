@@ -1,20 +1,21 @@
 window.CabinBotCreator = (() => {
-  const {options,normalize}=CabinBotAccessories;
+  const {mountOutfitControls}=CabinBotAccessories;
   const {portrait}=CabinCharacters;
 
-  function outfitControls(form,initial) {
-    const outfit=normalize(initial),panel=form.querySelector('.bc-outfit-options');
-    const fields=Object.entries(options).map(([key,{name,styles}])=>{
-      const field=document.createElement('div'),label=document.createElement('label'),select=document.createElement('select');
-      select.id=form.id+'-'+key;select.name='outfit-'+key;
-      label.htmlFor=select.id;label.textContent=name;
-      select.add(new Option('无', 'none'));
-      for(const [id,title] of Object.entries(styles))select.add(new Option(title,id));
-      select.value=outfit[key];
-      field.append(label,select);panel.append(field);
-      return [key,select];
-    });
-    return ()=>Object.fromEntries(fields.map(([key,select])=>[key,select.value]));
+  function outfitPreview(form,getAppearance){
+    const image=form.querySelector('.bc-portrait');
+    const view=form.querySelector('.bc-view');
+    let rear=false;
+    const update=()=>{
+      const {shape,color,outfit,name}=getAppearance();
+      view.hidden=outfit.back!=='case';
+      if(view.hidden)rear=false;
+      view.textContent=rear?'看正面':'看背面';
+      image.alt=rear?'Bot 背面预览':'Bot 正面预览';
+      image.src=portrait(shape,color,outfit,name,rear);
+    };
+    view.addEventListener('click',()=>{rear=!rear;update();});
+    return update;
   }
 
   function showError(error, message) {
@@ -31,7 +32,7 @@ window.CabinBotCreator = (() => {
     form.setAttribute('aria-label', '新增 Bot');
     form.innerHTML = `
       <div class="bc-intro">
-        <div class="bc-stage"><img class="bc-portrait" width="80" height="80" alt="Bot 外观预览"></div>
+        <div class="bc-stage"><img class="bc-portrait" width="80" height="80" alt="Bot 外观预览"><button type="button" class="bc-view" hidden>看背面</button></div>
         <div class="bc-name">
           <label for="newBotName">Bot 名字</label>
           <input id="newBotName" name="name" type="text" maxlength="20" placeholder="给它起个名字" required>
@@ -60,9 +61,8 @@ window.CabinBotCreator = (() => {
       </div>
       <p class="bc-storage">新增的 Bot 保存在当前浏览器。</p>`;
 
-    const readOutfit = outfitControls(form);
+    const {read:readOutfit}=mountOutfitControls(form.querySelector('.bc-outfit-options'),form.id);
     const field = form.elements;
-    const preview = form.querySelector('.bc-portrait');
     const shapeRow = form.querySelector('.bc-shapes');
     const colorRow = form.querySelector('.bc-colors');
     const externalFields = form.querySelector('.bc-external');
@@ -99,9 +99,9 @@ window.CabinBotCreator = (() => {
     for (const role of roles) field.skill.add(new Option((role.guest ?? role).job, role.id));
     field.skill.add(new Option('接入第三方 Bot', 'external'));
 
-    function updatePreview() {
-      preview.src = portrait(field.shape.value, field.color.value, readOutfit());
-    }
+    const updatePreview=outfitPreview(form,()=>({
+      shape:field.shape.value,color:field.color.value,outfit:readOutfit(),name:field.namedItem('name').value.trim()
+    }));
 
     function updateAppearance() {
       updatePreview();
@@ -124,7 +124,7 @@ window.CabinBotCreator = (() => {
 
     form.addEventListener('change', ({target}) => {
       if (target.name === 'color' || target.name === 'shape') updateAppearance();
-      if (target.name?.startsWith('outfit-')) updatePreview();
+      if (target.name==='name'||target.name?.startsWith('outfit-')) updatePreview();
       if (target === field.skill) updateSkill();
     });
     form.addEventListener('input', () => { error.hidden = true; });
@@ -153,16 +153,16 @@ window.CabinBotCreator = (() => {
     const form=document.createElement('form');
     form.id='botOutfitForm';form.className='bc-form';form.setAttribute('aria-label','Bot 装饰');
     form.innerHTML=`
-      <div class="bc-stage"><img class="bc-portrait" width="158" height="158" alt="Bot 外观预览"></div>
+      <div class="bc-stage"><img class="bc-portrait" width="158" height="158" alt="Bot 外观预览"><button type="button" class="bc-view" hidden>看背面</button></div>
       <div class="bc-outfit-options"></div>
       <p class="bc-error" role="alert" hidden></p>
       <div class="bc-actions">
         <button type="button" class="bc-cancel">取消</button>
         <button type="submit" class="act">保存装饰</button>
       </div>`;
-    const readOutfit=outfitControls(form,bot.outfit),error=form.querySelector('.bc-error');
-    const image=form.querySelector('.bc-portrait');
-    const updatePreview=()=>{image.src=portrait(bot.shape,bot.color,readOutfit());};
+    const {read:readOutfit}=mountOutfitControls(form.querySelector('.bc-outfit-options'),form.id,bot.outfit);
+    const error=form.querySelector('.bc-error');
+    const updatePreview=outfitPreview(form,()=>({...bot,outfit:readOutfit()}));
     form.addEventListener('change',()=>{error.hidden=true;updatePreview();});
     form.querySelector('.bc-cancel').addEventListener('click',onCancel);
     form.addEventListener('submit',event=>{

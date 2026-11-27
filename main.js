@@ -760,7 +760,9 @@
       if(!bot.community)continue;
       const record=desired.get(bot.id);
       if(record===bot)continue;
-      if(record&&record.shape===bot.shape&&record.color===bot.color){
+      const sameOutfit=record&&Object.keys(record.outfit).every(key=>record.outfit[key]===bot.outfit[key]);
+      const sameSign=record&&(record.outfit.sign!=='name'||record.name===bot.name);
+      if(record&&record.shape===bot.shape&&record.color===bot.color&&sameOutfit&&sameSign){
         Object.assign(bot,record);
       }else removeGuest(bot);
       changed=true;
@@ -783,7 +785,7 @@
     if(!b)return {ok:false,error:'找不到这位伙伴。'};
     const outfit=CabinBotAccessories.normalize(raw);
     if(Object.keys(outfit).every(key=>outfit[key]===b.outfit[key]))return {ok:true};
-    const model=CabinBotAccessories.build(b.shape,b.body,outfit),previousSize=b.pickSize;
+    const model=CabinBotAccessories.build(b.shape,b.body,outfit,b.name),previousSize=b.pickSize;
     const body=CabinCharacters.bodyRadius(b,model),radius=collisionRadius(b,body),point=b.root.position;
     const reach=T.MathUtils.lerp(radius,Math.min(radius,b.benchLimit),b.benchMix);
     if(reach>b.radius&&blocker(b,point,point,reach,contacts.padding))

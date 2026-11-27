@@ -1,3 +1,5 @@
+import '../bot-outfit.js';
+
 const botsPath = '/api/community/bots';
 const keyPath = '/api/community/upload-key';
 const verifyKeyPath = '/api/community/verify-upload-key';
@@ -153,6 +155,7 @@ async function lookupTemplateProfile(value) {
 
 function profileData(packet, saved) {
   const templateUrl = readTemplate(packet.templateUrl);
+  const outfit = globalThis.CabinOutfit.active(packet.outfit === undefined ? saved?.outfit : packet.outfit);
   const introduction = packet.introduction === undefined ? saved?.introduction
     : readText(packet.introduction, 'BOT 使用介绍', maxIntro, {optional:true, multiline:true});
   const profile = {
@@ -165,6 +168,7 @@ function profileData(packet, saved) {
     color:typeof packet.color === 'string' && /^#[a-f0-9]{6}$/i.test(packet.color) ? packet.color.toLowerCase() : '#27d875',
     ...(templateUrl ? {templateUrl} : {}),
     ...(introduction !== undefined ? {introduction} : {}),
+    ...(Object.keys(outfit).length ? {outfit} : {}),
   };
   return JSON.stringify(profile);
 }

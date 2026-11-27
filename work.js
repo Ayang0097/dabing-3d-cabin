@@ -468,7 +468,7 @@
             <button type="button" class="bot-card-roster" data-act="roster">全部伙伴</button>
           </footer>
         </div>`;
-        body.querySelector('.bot-card-preview img').src=CabinCharacters.portrait(b.shape,b.color,b.outfit);
+        body.querySelector('.bot-card-preview img').src=CabinCharacters.portrait(b.shape,b.color,b.outfit,b.name);
         work=body.querySelector('.bot-work');work.dataset.botId=id;work.dataset.revision=revision;
         CabinGrokTransfer.mount(body.querySelector('.grok-transfer'),b,{songs,drinks,rhymeBook,room:H.room},copyToClipboard,download);
       }
@@ -485,7 +485,7 @@
       const exchangeLabel=CabinCommunity.enabled?'Grok 双向迁移 ↔':'导入 Grok Bot';
       const localActions=publicSite?'':'<button class="act" data-act="createBot">＋ '+createLabel+'</button><button class="quiet" data-act="exchange">'+exchangeLabel+'</button>';
       const actions=localActions+community;
-      body.innerHTML=(actions?'<div class="grok-actions roster-actions">'+actions+'</div>':'')+H.bots.map(b=>'<button class="roster-row" data-bot="'+esc(b.id)+'"><img class="portrait" src="'+esc(CabinCharacters.portrait(b.shape,b.color,b.outfit))+'" alt=""><span class="row-main"><b>'+esc(b.name)+' · '+esc(b.job)+'</b><small data-status="'+esc(b.id)+'">'+esc(b.status)+'</small></span><em>↗</em></button>').join('');
+      body.innerHTML=(actions?'<div class="grok-actions roster-actions">'+actions+'</div>':'')+H.bots.map(b=>'<button class="roster-row" data-bot="'+esc(b.id)+'"><img class="portrait" src="'+esc(CabinCharacters.portrait(b.shape,b.color,b.outfit,b.name))+'" alt=""><span class="row-main"><b>'+esc(b.name)+' · '+esc(b.job)+'</b><small data-status="'+esc(b.id)+'">'+esc(b.status)+'</small></span><em>↗</em></button>').join('');
       if(H.waitingGuests.length){
         const waiting=document.createElement('details');
         waiting.className='exchange-alternate';

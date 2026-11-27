@@ -85,8 +85,8 @@ window.CabinBotCatalog = (() => {
 
   function fromCommunity(raw) {
     if (raw?.v !== 1 || !/^post-[a-f0-9]{32}$/.test(raw.id) || !Number.isFinite(raw.createdAt)) return null;
-    const {name, job, instructions, shape, color, templateUrl} = raw;
-    const info = grokFields({name, job, instructions, shape, color, templateUrl}, {maxName:maxPublicName});
+    const {name, job, instructions, shape, color, templateUrl, outfit} = raw;
+    const info = grokFields({name, job, instructions, shape, color, templateUrl, outfit}, {maxName:maxPublicName});
     if (info.error) return null;
     const introduction = typeof raw.introduction === 'string' ? raw.introduction : '';
     return {...info, introduction, id:raw.id, createdAt:raw.createdAt, revision:raw.revision ?? 0, community:true};

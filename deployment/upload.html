@@ -11,7 +11,11 @@
   <script src="site-config.js" defer></script>
   <script src="bot-api.js" defer></script>
   <script src="vendor/three.min.js" defer></script>
+  <script src="kit.js" defer></script>
   <script src="bot-shapes.js" defer></script>
+  <script src="bot-diy.js" defer></script>
+  <script src="bot-outfit.js" defer></script>
+  <script src="bot-accessories.js" defer></script>
   <script src="bot-packet.js" defer></script>
   <script src="public-upload.js" defer></script>
 </head>
@@ -71,6 +75,7 @@
           <div class="upload-appearance">
             <div class="upload-preview">
               <img id="botPreview" alt="BOT 外观预览" width="96" height="96">
+              <button id="botPreviewTurn" class="upload-preview-turn" type="button" hidden>看背面</button>
             </div>
             <div class="upload-field upload-shape">
               <label for="botShape">形状</label>
@@ -81,6 +86,10 @@
               <div class="upload-swatches" id="botColors"></div>
             </fieldset>
           </div>
+          <details class="upload-wardrobe" id="botWardrobe">
+            <summary>配件与表情</summary>
+            <div class="upload-outfit" id="botOutfit"></div>
+          </details>
         </fieldset>
         <button class="upload-submit" type="submit" disabled>上传并公开<span aria-hidden="true">→</span></button>
       </form>
