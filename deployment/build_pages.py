@@ -33,7 +33,13 @@ def bots_endpoint():
 def build(output):
     output.mkdir(parents=True, exist_ok=True)
     classroom_version = asset_version(ROOT / "classroom" / "assets" / "room.css")
-    upload_version = asset_version(DEPLOYMENT / "public-upload.js")
+    upload_assets = {
+        filename: asset_version(DEPLOYMENT / filename)
+        for filename in ("public-upload.js", "upload.css", "upload-scene.webp")
+    }
+    upload_page = DEPLOYMENT / "upload.html"
+    upload_revision = asset_version(upload_page) + "".join(upload_assets.values())
+    upload_version = sha256(upload_revision.encode()).hexdigest()[:12]
     css_version = asset_version(ROOT / "house.css")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     html = re.sub(r'<script data-source-only>.*?</script>\s*', "", html, flags=re.S)
@@ -56,11 +62,13 @@ def build(output):
     config = json.dumps({"botsEndpoint": bots_endpoint()})
     (output / "site-config.js").write_text(f"window.CabinPublication = Object.freeze({config});\n", encoding="utf-8")
     copy2(ROOT / "house.css", output / "house.css")
-    copy2(DEPLOYMENT / "public-upload.js", output / "public-upload.js")
+    for filename in upload_assets:
+        copy2(DEPLOYMENT / filename, output / filename)
     for filename in ("upload.html", "manage-upload.html"):
         page = (DEPLOYMENT / filename).read_text(encoding="utf-8")
-        page = page.replace('src="public-upload.js"', f'src="public-upload.js?v={upload_version}"')
         page = page.replace('href="house.css"', f'href="house.css?v={css_version}"')
+        for asset, version in upload_assets.items():
+            page = page.replace(f'="{asset}"', f'="{asset}?v={version}"')
         (output / filename).write_text(page, encoding="utf-8")
     for directory in ("audio", "textures", "exhibit-images", "classroom"):
         copytree(ROOT / directory, output / directory, dirs_exist_ok=True, ignore=ignore_patterns(".DS_Store"))

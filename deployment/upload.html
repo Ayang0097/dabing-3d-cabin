@@ -2,47 +2,38 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#263834">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#261a13">
   <meta name="referrer" content="no-referrer">
   <title>上传我的 BOT · 大冰的小屋</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="house.css">
+  <link rel="stylesheet" href="upload.css">
   <script src="site-config.js" defer></script>
   <script src="bot-packet.js" defer></script>
   <script src="public-upload.js" defer></script>
 </head>
-<body>
-  <main class="post-page">
-    <div class="post-sheet">
-      <a class="post-back" href="./">← 大冰的小屋</a>
-      <h1>上传我的 BOT</h1>
-      <p>每次上传前，请先验证屋主给你的上传密钥。</p>
-      <form class="public-upload-form" id="verifyUpload" method="post">
-        <label>上传密钥
-          <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
-        </label>
-        <button class="act" type="submit" disabled>验证密钥</button>
+<body class="cabin-upload">
+  <main class="upload-page">
+    <img class="upload-backdrop" src="upload-scene.webp" width="1920" height="1080" alt="" fetchpriority="high">
+    <a class="upload-back" href="./"><span aria-hidden="true">←</span> 回小屋</a>
+    <section class="upload-sheet" aria-labelledby="uploadTitle">
+      <h1 id="uploadTitle">上传我的 BOT</h1>
+      <form class="upload-form" method="post" data-mode="upload">
+        <div class="upload-field">
+          <label for="uploadKey">上传密钥</label>
+          <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥">
+        </div>
+        <div class="upload-field">
+          <label for="templateUrl">BOT 链接</label>
+          <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="uploadLinkHint">
+          <p id="uploadLinkHint" class="upload-hint">粘贴 Grok 的公开分享模板链接。<a href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取？</a></p>
+        </div>
+        <button class="upload-submit" type="submit" disabled>上传并公开<span aria-hidden="true">→</span></button>
       </form>
-      <form class="public-upload-form" method="post" data-mode="upload" hidden>
-        <label>BOT 名称
-          <input id="botName" type="text" required maxlength="20">
-        </label>
-        <label>岗位
-          <input id="botJob" type="text" required maxlength="20">
-        </label>
-        <label>公开工作指令
-          <textarea id="instructions" rows="5" maxlength="2400"></textarea>
-        </label>
-        <label>Grok 分享模板链接（可选）
-          <input id="templateUrl" type="url" maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off">
-        </label>
-        <p>工作指令和模板链接至少填一项。提交后，访客可以看见并复制这位 BOT。</p>
-        <button class="act" type="submit" disabled>上传并公开</button>
-      </form>
-      <p id="post-status" class="post-status" role="status"></p>
-      <noscript><p>请启用 JavaScript 提交 BOT。</p></noscript>
-    </div>
+      <p class="upload-note">上传后，小屋访客可以复制这位 BOT。</p>
+      <p id="post-status" class="upload-status" role="status"></p>
+      <noscript><p class="upload-status">请启用 JavaScript 上传 BOT。</p></noscript>
+    </section>
   </main>
 </body>
 </html>
