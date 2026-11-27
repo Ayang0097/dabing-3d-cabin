@@ -1200,7 +1200,8 @@
   function returnFromClassroom(){
     if(!classroomFrame||returningFromClassroom)return;
     returningFromClassroom=true;
-    history.back();
+    hideClassroom();
+    if(history.state?.cabinClassroom)history.back();
   }
   classroomBack.onclick=returnFromClassroom;
   classroomDialog.addEventListener('cancel',event=>{event.preventDefault();returnFromClassroom();});
