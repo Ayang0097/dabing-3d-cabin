@@ -8,7 +8,10 @@
   const templateLink = $('templateUrl');
   const botName = $('botName');
   const botIntro = $('botIntro');
-  const introStatus = $('introStatus');
+  const profileStatus = $('profileStatus');
+  const nameField = {input:botName, key:'name'};
+  const introField = {input:botIntro, key:'introduction'};
+  const profileFields = [nameField, introField];
   const botShape = $('botShape');
   const request = window.CabinBotApi;
   const editing = new URLSearchParams(location.search).get('mode') === 'edit';
@@ -24,8 +27,7 @@
   let busy = false;
   let lastSubmission;
   let requestId;
-  let introTimer, introCheck = 0, introLoading = false;
-  let introUrl = '', introEdited = false, autoIntro = '';
+  let profileLookup;
   const setAppearance = mountAppearance();
 
   function mountAppearance() {
@@ -84,7 +86,8 @@
 
   function updateSubmit() {
     const identified = editing ? memberKey && activeBot : uploadKey.value.trim();
-    submit.disabled = !request || busy || introLoading || !identified || !botName.value.trim() ||
+    submit.disabled = !request || busy || !identified ||
+      (profileLookup?.pending && needsTemplateProfile()) || (editing && !botName.value.trim()) ||
       (templateLink.required && !templateLink.value.trim());
     accessSubmit.disabled = !request || busy;
     choice.disabled = busy || !bots.size;
@@ -92,18 +95,16 @@
     leave.disabled = busy;
   }
 
-  function cancelIntroLookup() {
-    clearTimeout(introTimer);
-    introCheck += 1;
-    introLoading = false;
-    introStatus.textContent = '';
+  function clearProfileLookup() {
+    clearTimeout(profileLookup?.timer);
+    profileLookup = undefined;
+    profileStatus.textContent = '';
   }
 
-  function resetIntro(value = '', edited = false) {
-    cancelIntroLookup();
-    botIntro.value = value;
-    introEdited = edited;
-    introUrl = autoIntro = '';
+  function setProfileField(field, value = '', edited = false) {
+    field.input.value = value;
+    field.edited = edited;
+    field.prefilled = false;
   }
 
   function currentTemplate() {
@@ -117,27 +118,50 @@
     return '';
   }
 
-  function refreshIntro() {
+  function needsTemplateProfile() {
+    return (!editing && !botName.value.trim()) || profileFields.some(field => !field.edited);
+  }
+
+  function showProfileStatus() {
+    let message = '';
+    if (profileLookup && needsTemplateProfile()) {
+      if (profileLookup.pending) {
+        message = '正在读取 BOT 名称和使用介绍…';
+      } else if (!editing && !botName.value.trim() && !profileLookup.name) {
+        message = '暂时读不到原名称。可以手动填写，留空将使用「Grok BOT」。';
+      } else if (!introField.edited && !botIntro.value.trim()) {
+        message = '暂时读不到公开介绍，可以手动填写。';
+      }
+    }
+    profileStatus.textContent = message;
+  }
+
+  function refreshProfile() {
     const template = currentTemplate();
-    if (introEdited || template === introUrl) return;
-    cancelIntroLookup();
-    if (autoIntro && botIntro.value === autoIntro) botIntro.value = '';
-    introUrl = template;
-    autoIntro = '';
-    if (!template || !request) return;
-    introLoading = true;
-    introStatus.textContent = '正在读取 BOT 使用介绍…';
-    const check = introCheck;
-    introTimer = setTimeout(async () => {
-      let introduction = '';
+    if (template && template === profileLookup?.template) return;
+    clearProfileLookup();
+    for (const field of profileFields) {
+      if (field.prefilled && !field.edited) field.input.value = '';
+      field.prefilled = false;
+    }
+    if (!template || !request || !needsTemplateProfile()) return;
+    const lookup = profileLookup = {template, pending:true};
+    showProfileStatus();
+    lookup.timer = setTimeout(async () => {
+      let result;
       try {
-        const result = await request('template-intro', {templateUrl:template});
-        if (typeof result.introduction === 'string') introduction = result.introduction.slice(0, botIntro.maxLength);
+        result = await request('template-intro', {templateUrl:template});
       } catch {}
-      if (check !== introCheck) return;
-      if (introduction) autoIntro = botIntro.value = introduction;
-      introStatus.textContent = introduction ? '' : '暂时读不到公开介绍，可以手动填写。';
-      introLoading = false;
+      if (lookup !== profileLookup) return;
+      lookup.pending = false;
+      lookup.name = typeof result?.name === 'string' ? result.name : '';
+      for (const field of profileFields) {
+        const value = result?.[field.key];
+        if (field.edited || typeof value !== 'string' || !value) continue;
+        field.input.value = value;
+        field.prefilled = true;
+      }
+      showProfileStatus();
       updateSubmit();
     }, 320);
   }
@@ -169,7 +193,8 @@
     access.reset();
     access.hidden = false;
     tools.hidden = form.hidden = true;
-    resetIntro();
+    clearProfileLookup();
+    for (const field of profileFields) setProfileField(field);
     setStatus('');
     updateSubmit();
   }
@@ -178,13 +203,14 @@
     activeBot = bots.get(choice.value);
     form.hidden = !activeBot;
     if (activeBot) {
-      botName.value = activeBot.name;
+      clearProfileLookup();
+      setProfileField(nameField, activeBot.name, true);
       templateLink.value = activeBot.templateUrl || '';
       templateLink.required = !activeBot.instructions;
       $('templateLabel').textContent = templateLink.required ? 'BOT 链接' : 'BOT 链接（选填）';
       const legacyJob = ['Grok 模板', 'Grok 助手'].includes(activeBot.job) ? '' : activeBot.job;
-      resetIntro(activeBot.introduction ?? legacyJob ?? '', activeBot.introduction !== undefined);
-      refreshIntro();
+      setProfileField(introField, activeBot.introduction ?? legacyJob ?? '', activeBot.introduction !== undefined);
+      refreshProfile();
       setAppearance(activeBot);
     }
     updateSubmit();
@@ -225,15 +251,18 @@
       const link = value?.templateUrl;
       if (value?.v !== 1 || typeof link !== 'string' || !link.trim() || link.length > 1000) throw new Error();
       if (!templateLink.value) templateLink.value = link;
-      if (!botName.value && typeof value.name === 'string' && value.name.length <= botName.maxLength) {
-        botName.value = value.name;
+      if (templateLink.value.trim() === link.trim()) {
+        if (!nameField.edited && !botName.value && typeof value.name === 'string' && value.name.trim() &&
+            value.name.length <= botName.maxLength) {
+          setProfileField(nameField, value.name, true);
+        }
+        const introduction = value.introduction ?? value.job;
+        if (!introField.edited && !botIntro.value && typeof introduction === 'string' &&
+            introduction.length <= botIntro.maxLength) {
+          setProfileField(introField, introduction, typeof value.introduction === 'string');
+        }
       }
-      const introduction = value.introduction ?? value.job;
-      if (!introEdited && !botIntro.value && templateLink.value.trim() === link.trim() &&
-          typeof introduction === 'string' && introduction.length <= botIntro.maxLength) {
-        resetIntro(introduction, typeof value.introduction === 'string');
-      }
-      refreshIntro();
+      refreshProfile();
       updateSubmit();
     } catch {
       if (!templateLink.value) setStatus('这条投稿链接没有带分享模板，请粘贴 Grok 的公开分享模板链接。', true);
@@ -243,10 +272,11 @@
   form.addEventListener('input', event => {
     event.target.removeAttribute('aria-invalid');
     if (status.hasAttribute('data-error')) setStatus('');
-    if (event.target === templateLink) refreshIntro();
-    if (event.target === botIntro) {
-      introEdited = true;
-      cancelIntroLookup();
+    if (event.target === templateLink) refreshProfile();
+    const profileField = profileFields.find(field => field.input === event.target);
+    if (profileField) {
+      profileField.edited = true;
+      showProfileStatus();
     }
     updateSubmit();
   });
@@ -258,6 +288,7 @@
     $('uploadSwitch').href = './upload.html';
     $('uploadKeyField').hidden = true;
     uploadKey.disabled = true;
+    botName.required = true;
     $('uploadNote').hidden = true;
     submit.firstChild.textContent = '保存修改';
     endEditing();
@@ -280,6 +311,7 @@
     });
   } else {
     form.hidden = false;
+    refreshProfile();
     restoreDraft();
   }
   window.addEventListener('pageshow', event => {
@@ -295,7 +327,7 @@
     const templateUrl = templateLink.value.trim();
     return {
       v:1,
-      name:botName.value.trim(),
+      name:botName.value.trim() || profileLookup?.name || '',
       job:activeBot?.job || (templateUrl ? 'Grok 模板' : 'Grok 助手'),
       introduction:botIntro.value.trim(),
       templateUrl,

@@ -11,6 +11,7 @@ window.CabinBotCatalog = (() => {
   const roleOutfitPrefix = 'folkhouse-role-outfit-v1:';
   const idFormat = /^guest-[a-f0-9]{32}$/;
   const grokIdFormat = /^[a-zA-Z0-9_-]{1,120}$/;
+  const maxPublicName = 120;
   const text = value => typeof value === 'string' ? value.trim() : '';
 
   function grokTemplateLink(value) {
@@ -22,9 +23,9 @@ window.CabinBotCatalog = (() => {
     } catch { return ''; }
   }
 
-  function fields(raw, allowLegacyColor=false) {
+  function fields(raw, {allowLegacyColor = false, maxName = 20} = {}) {
     const name = text(raw?.name), job = text(raw?.job);
-    if (!name || name.length > 20) return {error:'给 Bot 取一个 1 到 20 字的名字。'};
+    if (!name || name.length > maxName) return {error:'给 Bot 取一个 1 到 ' + maxName + ' 字的名字。'};
     if (job.length > 20) return {error:'工作名称最多可写 20 字。'};
     const {shape, color, skill} = raw;
     const grok = skill === 'grok';
@@ -64,10 +65,10 @@ window.CabinBotCatalog = (() => {
     return {ok:true, record:{...info, id, createdAt:Date.now()}};
   }
 
-  function grokFields(raw) {
+  function grokFields(raw, options) {
     const shape = shapes.some(s => s.value === raw.shape) ? raw.shape : 'orb';
     const color = typeof raw.color === 'string' && /^#[\da-f]{6}$/i.test(raw.color) ? raw.color.toLowerCase() : colors[0].value;
-    return fields({...raw, shape, color, skill:'grok'});
+    return fields({...raw, shape, color, skill:'grok'}, options);
   }
 
   async function prepareGrok(raw) {
@@ -85,7 +86,7 @@ window.CabinBotCatalog = (() => {
   function fromCommunity(raw) {
     if (raw?.v !== 1 || !/^post-[a-f0-9]{32}$/.test(raw.id) || !Number.isFinite(raw.createdAt)) return null;
     const {name, job, instructions, shape, color, templateUrl} = raw;
-    const info = grokFields({name, job, instructions, shape, color, templateUrl});
+    const info = grokFields({name, job, instructions, shape, color, templateUrl}, {maxName:maxPublicName});
     if (info.error) return null;
     const introduction = typeof raw.introduction === 'string' ? raw.introduction : '';
     return {...info, introduction, id:raw.id, createdAt:raw.createdAt, revision:raw.revision ?? 0, community:true};
@@ -101,7 +102,7 @@ window.CabinBotCatalog = (() => {
         if (!idFormat.test(id)) continue;
         try {
           const raw = JSON.parse(localStorage.getItem(key));
-          const info = fields(raw,true);
+          const info = fields(raw, {allowLegacyColor:true});
           if (!info.error && raw.id === id && Number.isFinite(raw.createdAt))
             records.push({...info, id, createdAt:raw.createdAt});
         } catch { /* A damaged entry should not prevent the other residents loading. */ }

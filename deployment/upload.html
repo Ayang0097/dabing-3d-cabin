@@ -58,12 +58,12 @@
         <div class="upload-fields">
           <div class="upload-field">
             <label for="botName">BOT 名称</label>
-            <input id="botName" type="text" required maxlength="20" placeholder="小屋名片上的名字">
+            <input id="botName" type="text" maxlength="120" placeholder="自动带入原名称，可修改" aria-describedby="profileStatus">
           </div>
           <div class="upload-field">
             <label for="botIntro">BOT 使用介绍 <span>（选填）</span></label>
-            <textarea id="botIntro" rows="2" maxlength="1200" placeholder="粘贴 BOT 链接后自动带入，可修改" aria-describedby="introStatus"></textarea>
-            <p class="upload-hint" id="introStatus" role="status"></p>
+            <textarea id="botIntro" rows="2" maxlength="1200" placeholder="自动带入使用介绍，可修改" aria-describedby="profileStatus"></textarea>
+            <p class="upload-hint" id="profileStatus" role="status"></p>
           </div>
         </div>
         <fieldset class="upload-group">

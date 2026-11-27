@@ -3,14 +3,16 @@ const keyPath = '/api/community/upload-key';
 const verifyKeyPath = '/api/community/verify-upload-key';
 const membersPath = '/api/community/members';
 const minePath = '/api/community/mine';
-const templateIntroPath = '/api/community/template-intro';
+const templateProfilePath = '/api/community/template-intro';
 const identifier = /^[a-f0-9]{32}$/;
 const botId = /^post-[a-f0-9]{32}$/;
 const shapeOptions = new Set(['orb', 'tile', 'cloud', 'pebble', 'drop', 'badge', 'bloom', 'star']);
 const pageSize = 12;
 const maxBody = 18_000;
+const maxName = 120;
 const maxIntro = 1200;
 const maxTemplateHtml = 256_000;
+const emptyTemplateProfile = Object.freeze({name:'', introduction:''});
 const encoder = new TextEncoder();
 
 class RequestError extends Error {
@@ -82,46 +84,53 @@ function readTemplate(value) {
   throw new RequestError(400, '请填写完整的 Grok Bot 分享模板链接。');
 }
 
-function plainIntro(html) {
+function plainTemplateText(html, limit, singleLine = false) {
   const entities = {amp:'&', apos:"'", quot:'"', lt:'<', gt:'>', nbsp:' ', hellip:'…'};
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
-    .replace(/&(#(?:x[0-9a-f]+|\d+)|amp|apos|quot|lt|gt|nbsp|hellip);/gi, (entity, name) => {
+  const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
+    .replace(/&(#(?:x[0-9a-f]+|\d+)|amp|apos|quot|lt|gt|nbsp|hellip);/gi, (_, name) => {
       const key = name.toLowerCase();
       if (key[0] !== '#') return entities[key];
       const value = key[1] === 'x' ? parseInt(key.slice(2), 16) : Number(key.slice(1));
       return value > 0 && value <= 0x10ffff && (value < 0xd800 || value > 0xdfff) ? String.fromCodePoint(value) : '';
     })
-    .replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
-    .trim().slice(0, maxIntro).replace(/[\uD800-\uDBFF]$/, '');
+    .replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
+  return (singleLine ? text.replace(/\s+/g, ' ') : text)
+    .trim().slice(0, limit).replace(/[\uD800-\uDBFF]$/, '').trimEnd();
 }
 
-function readPublicIntro(html, url) {
-  // Use the published template card, which contains the full introductory text.
+function readPublicTemplateProfile(html, url) {
+  // Prefer the published card over the link preview, where the introduction may be shortened.
   const article = /<article\b[^>]*>([\s\S]*?)<\/article\s*>/i.exec(html)?.[1];
-  if (article && /<h1\b/i.test(article)) {
-    const paragraph = /<p\b[^>]*\bclass\s*=\s*(["'])[^"']*\bline-clamp-\d+\b[^"']*\1[^>]*>([\s\S]*?)<\/p\s*>/i.exec(article)?.[2];
-    const introduction = paragraph ? plainIntro(paragraph) : '';
-    if (introduction) return introduction;
-  }
+  const heading = article && /<h1\b[^>]*>([\s\S]*?)<\/h1\s*>/i.exec(article)?.[1];
+  const paragraph = heading && /<p\b[^>]*\bclass\s*=\s*(["'])[^"']*\bline-clamp-\d+\b[^"']*\1[^>]*>([\s\S]*?)<\/p\s*>/i.exec(article)?.[2];
+  const hasTemplateLink = html.includes('grokbot://app/v1/bot-template?id=' + url.split('/').at(-1));
+  if (!paragraph && !hasTemplateLink) return emptyTemplateProfile;
+  let name = heading ? plainTemplateText(heading, maxName, true) : '';
+  let introduction = paragraph ? plainTemplateText(paragraph, maxIntro) : '';
+  if ((name && introduction) || !hasTemplateLink) return {name, introduction};
 
-  // The preview metadata can be an excerpt. Only use it on a real template page.
-  if (!html.includes('grokbot://app/v1/bot-template?id=' + url.split('/').at(-1))) return '';
   for (const [tag] of html.matchAll(/<meta\s+(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi)) {
-    if (!/\bproperty\s*=\s*(["'])og:description\1/i.test(tag)) continue;
-    const description = /\bcontent\s*=\s*(["'])([\s\S]*?)\1/i.exec(tag)?.[2];
-    if (description) return plainIntro(description);
+    const property = /\bproperty\s*=\s*(["'])og:(title|description)\1/i.exec(tag)?.[2]?.toLowerCase();
+    if (!property) continue;
+    const content = /\bcontent\s*=\s*(["'])([\s\S]*?)\1/i.exec(tag)?.[2];
+    if (!content) continue;
+    if (!name && property === 'title') name = plainTemplateText(content, maxName, true);
+    if (!introduction && property === 'description') introduction = plainTemplateText(content, maxIntro);
+    if (name && introduction) break;
   }
-  return '';
+  return {name, introduction};
 }
 
-async function lookupTemplateIntro(value) {
+async function lookupTemplateProfile(value) {
   const url = readTemplate(value);
-  if (!url) return '';
+  if (!url) return emptyTemplateProfile;
   try {
     const response = await fetch(url, {
       headers:{Accept:'text/html'}, redirect:'manual', signal:AbortSignal.timeout(6000),
     });
-    if (!response.ok || !response.body || !response.headers.get('Content-Type')?.includes('text/html')) return '';
+    if (!response.ok || !response.body || !response.headers.get('Content-Type')?.includes('text/html')) {
+      return emptyTemplateProfile;
+    }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let remaining = maxTemplateHtml, html = '';
@@ -136,21 +145,22 @@ async function lookupTemplateIntro(value) {
     } finally {
       await reader.cancel().catch(() => {});
     }
-    return readPublicIntro(html + decoder.decode(), url);
+    return readPublicTemplateProfile(html + decoder.decode(), url);
   } catch {
-    return '';
+    return emptyTemplateProfile;
   }
 }
 
-function profileData(packet, instructions, savedIntro) {
+function profileData(packet, saved) {
   const templateUrl = readTemplate(packet.templateUrl);
-  const introduction = packet.introduction === undefined ? savedIntro
+  const introduction = packet.introduction === undefined ? saved?.introduction
     : readText(packet.introduction, 'BOT 使用介绍', maxIntro, {optional:true, multiline:true});
   const profile = {
     v:1,
-    name:readText(packet.name, 'Bot 名称', 20),
+    name:readText(packet.name, 'Bot 名称', maxName, {optional:!saved && Boolean(templateUrl)}) || 'Grok BOT',
     job:readText(packet.job, '岗位', 20),
-    instructions:readText(instructions, '工作指令', 2400, {optional:Boolean(templateUrl), multiline:true}),
+    instructions:readText(saved ? saved.instructions : packet.instructions, '工作指令', 2400,
+      {optional:Boolean(templateUrl), multiline:true}),
     shape:shapeOptions.has(packet.shape) ? packet.shape : 'orb',
     color:typeof packet.color === 'string' && /^#[a-f0-9]{6}$/i.test(packet.color) ? packet.color.toLowerCase() : '#27d875',
     ...(templateUrl ? {templateUrl} : {}),
@@ -240,7 +250,7 @@ async function publishBot(env, payload) {
     throw new RequestError(400, '请确认 Bot 资料并提交公开投稿。');
   }
   const id = 'post-' + packet.requestId;
-  const data = profileData(packet, packet.instructions);
+  const data = profileData(packet);
   const gate = uploadKeyCondition(authorized);
   // Recheck within the write so a rotated key cannot authorize a late upload.
   const insert = env.DB.prepare(
@@ -267,7 +277,7 @@ async function editBot(db, id, payload) {
   const row = await db.prepare('SELECT * FROM community_bots WHERE id = ? AND member_id = ?').bind(id, memberId).first();
   if (!row) throw new RequestError(404, '请从「我的 BOT」选择要编辑的投稿。');
   const saved = JSON.parse(row.data);
-  const data = profileData(packet, saved.instructions, saved.introduction);
+  const data = profileData(packet, saved);
   const gate = uploadKeyCondition(authorized);
   const update = db.prepare('UPDATE community_bots SET data = ?, revision = revision + 1 ' +
     'WHERE id = ? AND member_id = ? AND revision = ? AND ' + gate.sql)
@@ -332,7 +342,7 @@ export default {
     const reply = (status, data) => new Response(JSON.stringify(data), {status, headers});
     try {
       const id = pathname.startsWith(botsPath + '/') ? pathname.slice(botsPath.length + 1) : '';
-      const isPostRoute = [botsPath, keyPath, verifyKeyPath, membersPath, minePath, templateIntroPath].includes(pathname);
+      const isPostRoute = [botsPath, keyPath, verifyKeyPath, membersPath, minePath, templateProfilePath].includes(pathname);
       const isBot = botId.test(id);
       if (request.method === 'OPTIONS' && (isPostRoute || isBot) && allowed) {
         headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
@@ -343,8 +353,8 @@ export default {
       if ((request.method === 'POST' && isPostRoute) || (request.method === 'PATCH' && isBot)) {
         if (origin && !allowed) throw new RequestError(403, '请从小屋的上传页提交。');
         const payload = await readJson(request);
-        if (pathname === templateIntroPath) {
-          return reply(200, {introduction:await lookupTemplateIntro(payload.templateUrl)});
+        if (pathname === templateProfilePath) {
+          return reply(200, await lookupTemplateProfile(payload.templateUrl));
         }
         if (request.method === 'PATCH') return reply(200, await editBot(env.DB, id, payload));
         if (pathname === membersPath) return reply(200, await manageMembers(env, payload));
