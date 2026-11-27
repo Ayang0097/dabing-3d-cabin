@@ -372,7 +372,7 @@
       const original=bot.sourceId?CabinGrokTransfer.promptLink('请继续你的工作。先告诉我可以提供什么材料。',bot.sourceId):'';
       const notes=bot.instructions?'<details class="exchange-alternate"><summary>查看带来的工作指令</summary><p class="grok-imported-instructions">'+esc(bot.instructions)+'</p></details>':'';
       const template=templateBios.get(bot.templateUrl);
-      const intro=template
+      const intro=bot.introduction?esc(bot.introduction).replace(/\n/g,'<br>'):template
         ?'<span class="bot-template-name"><small>原模板</small><strong>'+esc(template.title)+'</strong></span>'+esc(template.summary)
         :bot.templateUrl?'从 Grok 分享链接入屋，可在模板页查看这位伙伴的介绍。'
         :bot.instructions?'这位伙伴带来了自己的工作指令，可以展开查看。'

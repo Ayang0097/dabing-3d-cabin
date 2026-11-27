@@ -87,7 +87,8 @@ window.CabinBotCatalog = (() => {
     const {name, job, instructions, shape, color, templateUrl} = raw;
     const info = grokFields({name, job, instructions, shape, color, templateUrl});
     if (info.error) return null;
-    return {...info, id:raw.id, createdAt:raw.createdAt, revision:raw.revision ?? 0, community:true};
+    const introduction = typeof raw.introduction === 'string' ? raw.introduction : '';
+    return {...info, introduction, id:raw.id, createdAt:raw.createdAt, revision:raw.revision ?? 0, community:true};
   }
 
   function all() {

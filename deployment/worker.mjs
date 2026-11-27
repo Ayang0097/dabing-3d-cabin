@@ -3,11 +3,14 @@ const keyPath = '/api/community/upload-key';
 const verifyKeyPath = '/api/community/verify-upload-key';
 const membersPath = '/api/community/members';
 const minePath = '/api/community/mine';
+const templateIntroPath = '/api/community/template-intro';
 const identifier = /^[a-f0-9]{32}$/;
 const botId = /^post-[a-f0-9]{32}$/;
 const shapeOptions = new Set(['orb', 'tile', 'cloud', 'pebble', 'drop', 'badge', 'bloom', 'star']);
 const pageSize = 12;
 const maxBody = 18_000;
+const maxIntro = 1200;
+const maxTemplateHtml = 256_000;
 const encoder = new TextEncoder();
 
 class RequestError extends Error {
@@ -79,8 +82,70 @@ function readTemplate(value) {
   throw new RequestError(400, '请填写完整的 Grok Bot 分享模板链接。');
 }
 
-function profileData(packet, instructions) {
+function plainIntro(html) {
+  const entities = {amp:'&', apos:"'", quot:'"', lt:'<', gt:'>', nbsp:' ', hellip:'…'};
+  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '')
+    .replace(/&(#(?:x[0-9a-f]+|\d+)|amp|apos|quot|lt|gt|nbsp|hellip);/gi, (entity, name) => {
+      const key = name.toLowerCase();
+      if (key[0] !== '#') return entities[key];
+      const value = key[1] === 'x' ? parseInt(key.slice(2), 16) : Number(key.slice(1));
+      return value > 0 && value <= 0x10ffff && (value < 0xd800 || value > 0xdfff) ? String.fromCodePoint(value) : '';
+    })
+    .replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
+    .trim().slice(0, maxIntro).replace(/[\uD800-\uDBFF]$/, '');
+}
+
+function readPublicIntro(html, url) {
+  // Use the published template card, which contains the full introductory text.
+  const article = /<article\b[^>]*>([\s\S]*?)<\/article\s*>/i.exec(html)?.[1];
+  if (article && /<h1\b/i.test(article)) {
+    const paragraph = /<p\b[^>]*\bclass\s*=\s*(["'])[^"']*\bline-clamp-\d+\b[^"']*\1[^>]*>([\s\S]*?)<\/p\s*>/i.exec(article)?.[2];
+    const introduction = paragraph ? plainIntro(paragraph) : '';
+    if (introduction) return introduction;
+  }
+
+  // The preview metadata can be an excerpt. Only use it on a real template page.
+  if (!html.includes('grokbot://app/v1/bot-template?id=' + url.split('/').at(-1))) return '';
+  for (const [tag] of html.matchAll(/<meta\s+(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi)) {
+    if (!/\bproperty\s*=\s*(["'])og:description\1/i.test(tag)) continue;
+    const description = /\bcontent\s*=\s*(["'])([\s\S]*?)\1/i.exec(tag)?.[2];
+    if (description) return plainIntro(description);
+  }
+  return '';
+}
+
+async function lookupTemplateIntro(value) {
+  const url = readTemplate(value);
+  if (!url) return '';
+  try {
+    const response = await fetch(url, {
+      headers:{Accept:'text/html'}, redirect:'manual', signal:AbortSignal.timeout(6000),
+    });
+    if (!response.ok || !response.body || !response.headers.get('Content-Type')?.includes('text/html')) return '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let remaining = maxTemplateHtml, html = '';
+    try {
+      while (remaining > 0) {
+        const {done, value:chunk} = await reader.read();
+        if (done) break;
+        const part = chunk.subarray(0, remaining);
+        html += decoder.decode(part, {stream:true});
+        remaining -= part.length;
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+    return readPublicIntro(html + decoder.decode(), url);
+  } catch {
+    return '';
+  }
+}
+
+function profileData(packet, instructions, savedIntro) {
   const templateUrl = readTemplate(packet.templateUrl);
+  const introduction = packet.introduction === undefined ? savedIntro
+    : readText(packet.introduction, 'BOT 使用介绍', maxIntro, {optional:true, multiline:true});
   const profile = {
     v:1,
     name:readText(packet.name, 'Bot 名称', 20),
@@ -89,6 +154,7 @@ function profileData(packet, instructions) {
     shape:shapeOptions.has(packet.shape) ? packet.shape : 'orb',
     color:typeof packet.color === 'string' && /^#[a-f0-9]{6}$/i.test(packet.color) ? packet.color.toLowerCase() : '#27d875',
     ...(templateUrl ? {templateUrl} : {}),
+    ...(introduction !== undefined ? {introduction} : {}),
   };
   return JSON.stringify(profile);
 }
@@ -200,7 +266,8 @@ async function editBot(db, id, payload) {
   }
   const row = await db.prepare('SELECT * FROM community_bots WHERE id = ? AND member_id = ?').bind(id, memberId).first();
   if (!row) throw new RequestError(404, '请从「我的 BOT」选择要编辑的投稿。');
-  const data = profileData(packet, JSON.parse(row.data).instructions);
+  const saved = JSON.parse(row.data);
+  const data = profileData(packet, saved.instructions, saved.introduction);
   const gate = uploadKeyCondition(authorized);
   const update = db.prepare('UPDATE community_bots SET data = ?, revision = revision + 1 ' +
     'WHERE id = ? AND member_id = ? AND revision = ? AND ' + gate.sql)
@@ -265,7 +332,7 @@ export default {
     const reply = (status, data) => new Response(JSON.stringify(data), {status, headers});
     try {
       const id = pathname.startsWith(botsPath + '/') ? pathname.slice(botsPath.length + 1) : '';
-      const isPostRoute = [botsPath, keyPath, verifyKeyPath, membersPath, minePath].includes(pathname);
+      const isPostRoute = [botsPath, keyPath, verifyKeyPath, membersPath, minePath, templateIntroPath].includes(pathname);
       const isBot = botId.test(id);
       if (request.method === 'OPTIONS' && (isPostRoute || isBot) && allowed) {
         headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
@@ -276,6 +343,9 @@ export default {
       if ((request.method === 'POST' && isPostRoute) || (request.method === 'PATCH' && isBot)) {
         if (origin && !allowed) throw new RequestError(403, '请从小屋的上传页提交。');
         const payload = await readJson(request);
+        if (pathname === templateIntroPath) {
+          return reply(200, {introduction:await lookupTemplateIntro(payload.templateUrl)});
+        }
         if (request.method === 'PATCH') return reply(200, await editBot(env.DB, id, payload));
         if (pathname === membersPath) return reply(200, await manageMembers(env, payload));
         if (pathname === minePath) {

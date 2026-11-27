@@ -128,8 +128,11 @@
 .upload-field { gap: 6px; }
 .upload-field label { font-size: 15px; font-weight: 650; }
 .upload-field label span, .upload-palette legend span { color: var(--quiet); font-size: 13px; font-weight: 450; }
+.upload-field-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.upload-link-help { color: #614025; font-size: 12px; text-underline-offset: 3px; }
+.upload-link-help:hover { color: #452816; }
 
-.upload-field input, .upload-field select {
+.upload-field input, .upload-field select, .upload-field textarea {
   width: 100%;
   min-height: 44px;
   padding: 8px 11px;
@@ -141,8 +144,9 @@
   font-size: 16px;
 }
 
-.upload-field input::placeholder { color: #756451; opacity: 1; }
-.upload-field input[aria-invalid="true"] { border-color: #9b361f; }
+.upload-field textarea { resize: vertical; line-height: 1.4; }
+.upload-field :is(input, textarea)::placeholder { color: #756451; opacity: 1; }
+.upload-field [aria-invalid="true"] { border-color: #9b361f; }
 .upload-field input:read-only { background: #f1e6d5; }
 
 .upload-group, .upload-palette { border: 0; padding: 0; margin: 0; min-width: 0; }
@@ -218,6 +222,7 @@
 
 .upload-hint a { color: #614025; text-underline-offset: 3px; }
 .upload-hint a:hover { color: #452816; }
+.upload-hint:empty { display: none; }
 .upload-note { margin-top: 13px; text-align: center; }
 
 .upload-submit {

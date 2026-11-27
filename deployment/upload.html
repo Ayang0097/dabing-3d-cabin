@@ -45,28 +45,27 @@
         <div class="upload-fields upload-source">
           <div class="upload-field" id="uploadKeyField">
             <label for="uploadKey">上传密钥</label>
-            <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥" aria-describedby="uploadKeyHint">
-            <p id="uploadKeyHint" class="upload-hint">用个人密钥投稿，可在「我的 BOT」编辑。</p>
+            <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥">
           </div>
           <div class="upload-field">
-            <label for="templateUrl" id="templateLabel">BOT 链接</label>
-            <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="uploadLinkHint">
-            <p id="uploadLinkHint" class="upload-hint"><a href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取 Grok 公开分享链接？</a></p>
+            <div class="upload-field-label">
+              <label for="templateUrl" id="templateLabel">BOT 链接</label>
+              <a class="upload-link-help" href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取 BOT 链接？</a>
+            </div>
+            <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none">
           </div>
         </div>
-        <fieldset class="upload-group">
-          <legend>BOT 信息</legend>
-          <div class="upload-fields">
-            <div class="upload-field">
-              <label for="botName">BOT 名称</label>
-              <input id="botName" type="text" required maxlength="20" placeholder="小屋名片上的名字">
-            </div>
-            <div class="upload-field">
-              <label for="botJob">用途 <span>（选填）</span></label>
-              <input id="botJob" type="text" maxlength="20" placeholder="例如：按心情推荐民谣">
-            </div>
+        <div class="upload-fields">
+          <div class="upload-field">
+            <label for="botName">BOT 名称</label>
+            <input id="botName" type="text" required maxlength="20" placeholder="小屋名片上的名字">
           </div>
-        </fieldset>
+          <div class="upload-field">
+            <label for="botIntro">BOT 使用介绍 <span>（选填）</span></label>
+            <textarea id="botIntro" rows="2" maxlength="1200" placeholder="粘贴 BOT 链接后自动带入，可修改" aria-describedby="introStatus"></textarea>
+            <p class="upload-hint" id="introStatus" role="status"></p>
+          </div>
+        </div>
         <fieldset class="upload-group">
           <legend>BOT 外观</legend>
           <div class="upload-appearance">

@@ -7,7 +7,8 @@
   const uploadKey = $('uploadKey');
   const templateLink = $('templateUrl');
   const botName = $('botName');
-  const botJob = $('botJob');
+  const botIntro = $('botIntro');
+  const introStatus = $('introStatus');
   const botShape = $('botShape');
   const request = window.CabinBotApi;
   const editing = new URLSearchParams(location.search).get('mode') === 'edit';
@@ -23,6 +24,8 @@
   let busy = false;
   let lastSubmission;
   let requestId;
+  let introTimer, introCheck = 0, introLoading = false;
+  let introUrl = '', introEdited = false, autoIntro = '';
   const setAppearance = mountAppearance();
 
   function mountAppearance() {
@@ -81,12 +84,62 @@
 
   function updateSubmit() {
     const identified = editing ? memberKey && activeBot : uploadKey.value.trim();
-    submit.disabled = !request || busy || !identified || !botName.value.trim() ||
+    submit.disabled = !request || busy || introLoading || !identified || !botName.value.trim() ||
       (templateLink.required && !templateLink.value.trim());
     accessSubmit.disabled = !request || busy;
     choice.disabled = busy || !bots.size;
     more.disabled = busy;
     leave.disabled = busy;
+  }
+
+  function cancelIntroLookup() {
+    clearTimeout(introTimer);
+    introCheck += 1;
+    introLoading = false;
+    introStatus.textContent = '';
+  }
+
+  function resetIntro(value = '', edited = false) {
+    cancelIntroLookup();
+    botIntro.value = value;
+    introEdited = edited;
+    introUrl = autoIntro = '';
+  }
+
+  function currentTemplate() {
+    try {
+      const url = new URL(templateLink.value.trim());
+      const match = /^\/bot\/([A-Za-z0-9_-]{16,120})\/?$/.exec(url.pathname);
+      if (match && ['https://x.ai', 'https://www.x.ai'].includes(url.origin) && !url.username && !url.password) {
+        return 'https://x.ai/bot/' + match[1];
+      }
+    } catch {}
+    return '';
+  }
+
+  function refreshIntro() {
+    const template = currentTemplate();
+    if (introEdited || template === introUrl) return;
+    cancelIntroLookup();
+    if (autoIntro && botIntro.value === autoIntro) botIntro.value = '';
+    introUrl = template;
+    autoIntro = '';
+    if (!template || !request) return;
+    introLoading = true;
+    introStatus.textContent = '正在读取 BOT 使用介绍…';
+    const check = introCheck;
+    introTimer = setTimeout(async () => {
+      let introduction = '';
+      try {
+        const result = await request('template-intro', {templateUrl:template});
+        if (typeof result.introduction === 'string') introduction = result.introduction.slice(0, botIntro.maxLength);
+      } catch {}
+      if (check !== introCheck) return;
+      if (introduction) autoIntro = botIntro.value = introduction;
+      introStatus.textContent = introduction ? '' : '暂时读不到公开介绍，可以手动填写。';
+      introLoading = false;
+      updateSubmit();
+    }, 320);
   }
 
   function showError(error) {
@@ -97,7 +150,7 @@
     } else if (error.status === 400) {
       if (error.message.includes('链接')) field = templateLink;
       else if (error.message.includes('Bot 名称')) field = botName;
-      else if (error.message.includes('岗位')) field = botJob;
+      else if (error.message.includes('使用介绍')) field = botIntro;
     }
     setStatus(error.message, true, field);
     if (field) {
@@ -116,6 +169,7 @@
     access.reset();
     access.hidden = false;
     tools.hidden = form.hidden = true;
+    resetIntro();
     setStatus('');
     updateSubmit();
   }
@@ -125,10 +179,12 @@
     form.hidden = !activeBot;
     if (activeBot) {
       botName.value = activeBot.name;
-      botJob.value = activeBot.job;
       templateLink.value = activeBot.templateUrl || '';
       templateLink.required = !activeBot.instructions;
       $('templateLabel').textContent = templateLink.required ? 'BOT 链接' : 'BOT 链接（选填）';
+      const legacyJob = ['Grok 模板', 'Grok 助手'].includes(activeBot.job) ? '' : activeBot.job;
+      resetIntro(activeBot.introduction ?? legacyJob ?? '', activeBot.introduction !== undefined);
+      refreshIntro();
       setAppearance(activeBot);
     }
     updateSubmit();
@@ -169,9 +225,15 @@
       const link = value?.templateUrl;
       if (value?.v !== 1 || typeof link !== 'string' || !link.trim() || link.length > 1000) throw new Error();
       if (!templateLink.value) templateLink.value = link;
-      for (const [field, text] of [[botName, value.name], [botJob, value.job]]) {
-        if (!field.value && typeof text === 'string' && text.length <= field.maxLength) field.value = text;
+      if (!botName.value && typeof value.name === 'string' && value.name.length <= botName.maxLength) {
+        botName.value = value.name;
       }
+      const introduction = value.introduction ?? value.job;
+      if (!introEdited && !botIntro.value && templateLink.value.trim() === link.trim() &&
+          typeof introduction === 'string' && introduction.length <= botIntro.maxLength) {
+        resetIntro(introduction, typeof value.introduction === 'string');
+      }
+      refreshIntro();
       updateSubmit();
     } catch {
       if (!templateLink.value) setStatus('这条投稿链接没有带分享模板，请粘贴 Grok 的公开分享模板链接。', true);
@@ -181,6 +243,11 @@
   form.addEventListener('input', event => {
     event.target.removeAttribute('aria-invalid');
     if (status.hasAttribute('data-error')) setStatus('');
+    if (event.target === templateLink) refreshIntro();
+    if (event.target === botIntro) {
+      introEdited = true;
+      cancelIntroLookup();
+    }
     updateSubmit();
   });
 
@@ -229,7 +296,8 @@
     return {
       v:1,
       name:botName.value.trim(),
-      job:botJob.value.trim() || (templateUrl ? 'Grok 模板' : 'Grok 助手'),
+      job:activeBot?.job || (templateUrl ? 'Grok 模板' : 'Grok 助手'),
+      introduction:botIntro.value.trim(),
       templateUrl,
       shape:botShape.value,
       color:form.elements.botColor.value,
