@@ -304,19 +304,20 @@ window.CabinCharacters = (() => {
     b.walkPhase+=dt*7.1*b.stride;
     const walkPhase=b.walkPhase,jump=(1-Math.cos(walkPhase))*.5;
     const breathe=Math.sin(t*1.95+b.phase), step=b.stride, seated=b.sitMix;
-    const stretch=.010*breathe+.060*step*(2*jump-1)-.105*seated;
+    const stretch=b.fixedSize?0:.010*breathe+.060*step*(2*jump-1)-.105*seated;
     const impact=b.impact||0;
+    const squash=b.fixedSize?0:.068*impact;
     // Only a shape or accessory wider than its cushion needs to tuck in.
     // A smaller drop in height keeps the seated blob from looking overly thin.
     const foldedReach=b.hasCup?Math.max(b.benchEnvelope,.65*b.scale+.010):b.benchEnvelope;
-    const tuck=b.benchMix ? b.benchMix*(1-Math.min(1,b.benchLimit/foldedReach)) : 0;
+    const tuck=b.benchMix&&!b.fixedSize ? b.benchMix*(1-Math.min(1,b.benchLimit/foldedReach)) : 0;
     const seatedScale=1-tuck;
     b.seatedHeightScale=Math.sqrt(seatedScale);
     b.model.scale.set(b.scale*seatedScale,b.scale*b.seatedHeightScale,b.scale*seatedScale);
     if(b.props.guitar)b.model.position.z=-.045*b.scale*b.benchMix;
     if(b.hit){b.hit.scale.x=1-tuck;b.hit.scale.z=1-tuck;}
     b.motion.position.y=step*.148*jump;
-    b.motion.scale.set(1-.50*stretch,1+stretch-.068*impact,1-.47*stretch);
+    b.motion.scale.set(1-.50*stretch,1+stretch-squash,1-.47*stretch);
     b.motion.rotation.z=.018*breathe+.072*step*Math.sin(walkPhase*.5);
     b.motion.rotation.x=.028*step+(b.seatMotion?.lean??0);
     if(impact>.001){

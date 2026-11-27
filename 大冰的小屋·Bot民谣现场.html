@@ -5115,19 +5115,20 @@ window.CabinCharacters = (() => {
     b.walkPhase+=dt*7.1*b.stride;
     const walkPhase=b.walkPhase,jump=(1-Math.cos(walkPhase))*.5;
     const breathe=Math.sin(t*1.95+b.phase), step=b.stride, seated=b.sitMix;
-    const stretch=.010*breathe+.060*step*(2*jump-1)-.105*seated;
+    const stretch=b.fixedSize?0:.010*breathe+.060*step*(2*jump-1)-.105*seated;
     const impact=b.impact||0;
+    const squash=b.fixedSize?0:.068*impact;
     // Only a shape or accessory wider than its cushion needs to tuck in.
     // A smaller drop in height keeps the seated blob from looking overly thin.
     const foldedReach=b.hasCup?Math.max(b.benchEnvelope,.65*b.scale+.010):b.benchEnvelope;
-    const tuck=b.benchMix ? b.benchMix*(1-Math.min(1,b.benchLimit/foldedReach)) : 0;
+    const tuck=b.benchMix&&!b.fixedSize ? b.benchMix*(1-Math.min(1,b.benchLimit/foldedReach)) : 0;
     const seatedScale=1-tuck;
     b.seatedHeightScale=Math.sqrt(seatedScale);
     b.model.scale.set(b.scale*seatedScale,b.scale*b.seatedHeightScale,b.scale*seatedScale);
     if(b.props.guitar)b.model.position.z=-.045*b.scale*b.benchMix;
     if(b.hit){b.hit.scale.x=1-tuck;b.hit.scale.z=1-tuck;}
     b.motion.position.y=step*.148*jump;
-    b.motion.scale.set(1-.50*stretch,1+stretch-.068*impact,1-.47*stretch);
+    b.motion.scale.set(1-.50*stretch,1+stretch-squash,1-.47*stretch);
     b.motion.rotation.z=.018*breathe+.072*step*Math.sin(walkPhase*.5);
     b.motion.rotation.x=.028*step+(b.seatMotion?.lean??0);
     if(impact>.001){
@@ -7226,10 +7227,19 @@ window.makeCabinPlayerView = function(room){
   renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
   const opening={position:new T.Vector3(.62,1.60,11.44),yaw:.07,pitch:.060,fov:59};
   const roomZoom=64,arrivalYaw=.10,arrivalPitch=-.20,landing=new T.Vector3(.45,0,3.58);
-  const player=CabinCharacters.make(scene,{id:'you',name:'你',shape:'orb',color:CabinBotArt.palette.black,scale:.385*CabinCharacters.guestScale,
-    x:landing.x,z:landing.z,yaw:Math.PI+arrivalYaw},8);
+  // Use the former size on the hearth cushions as the player's size in every pose.
+  const player=CabinCharacters.make(scene,{id:'you',name:'你',shape:'orb',color:CabinBotArt.palette.black,scale:.275*CabinCharacters.guestScale,
+    fixedSize:true,x:landing.x,z:landing.z,yaw:Math.PI+arrivalYaw},8);
   player.walkSpeed=2.16;fitCollision(player);player.root.name='玩家 Bot';player.root.visible=false;
-  player.root.traverse(object=>{if(object.isMesh)object.castShadow=false;});
+  const playerMaterials=new Map();
+  player.root.traverse(object=>{
+    if(!object.isMesh)return;
+    object.castShadow=false;
+    const shared=object.material;
+    if(!playerMaterials.has(shared))playerMaterials.set(shared,shared.clone());
+    object.material=playerMaterials.get(shared);
+  });
+  setPlayerReveal(0);
   const pos=player.root.position.copy(opening.position),velocity=new T.Vector3(),playerView=makeCabinPlayerView(room);
   const jumpApex=.90,idleJumpRise=.30,jumpGravity=8.8;
   let jumpSpeed=null;
@@ -8248,6 +8258,17 @@ window.makeCabinPlayerView = function(room){
     if(backdropPress&&e.target===exhibitDialog&&outsideCard(e))dismissExhibit();
     backdropPress=false;
   });
+  function setPlayerReveal(opacity){
+    player.model.visible=player.shade.visible=opacity>0;
+    for(const [shared,material] of playerMaterials){
+      material.opacity=shared.opacity*opacity;
+      const transparent=shared.transparent||opacity<1;
+      if(material.transparent!==transparent){
+        material.transparent=transparent;
+        material.needsUpdate=true;
+      }
+    }
+  }
   function enter(){
     if(entering||entered)return;
     const spawn=[landing,...[-.62,.62,-1.12,1.12].map(offset=>new T.Vector3(landing.x+offset,0,landing.z)),
@@ -8409,6 +8430,7 @@ window.makeCabinPlayerView = function(room){
     if(player.seat!==null)room.seats[player.seat].occupied=null;
     player.seat=null;player.seatMotion=null;player.benchMix=0;player.benchLimit=Infinity;cancelPath();$('seatBadge').hidden=true;
     player.root.visible=false;player.speed=player.stride=player.sitMix=0;playerView.reset();
+    setPlayerReveal(0);
     player.travelX=player.travelZ=player.impact=0;player.touching=null;jumpSpeed=null;
     releaseCanvasPointer();clearKeys();
     entered=false;entering=false;framedExhibit=null;entranceExhibit=null;grokArrival=null;doorProgress=0;
@@ -8585,6 +8607,7 @@ window.makeCabinPlayerView = function(room){
       doorProgress=Math.min(1,doorProgress+dt*(reduceMotion?3:.44));
       const progress=T.MathUtils.smootherstep(doorProgress,0,1);
       for(const {door,side} of room.doors)door.rotation.y=side*(1.37+progress*.52);
+      setPlayerReveal(T.MathUtils.smootherstep(doorProgress,.36,.94));
       if(doorProgress>=1){
         entering=false;entered=true;main.classList.add('in-room');
         $('entry').hidden=true;$('playUI').hidden=false;$('player-location').hidden=false;

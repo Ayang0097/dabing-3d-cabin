@@ -45,10 +45,19 @@
   renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
   const opening={position:new T.Vector3(.62,1.60,11.44),yaw:.07,pitch:.060,fov:59};
   const roomZoom=64,arrivalYaw=.10,arrivalPitch=-.20,landing=new T.Vector3(.45,0,3.58);
-  const player=CabinCharacters.make(scene,{id:'you',name:'你',shape:'orb',color:CabinBotArt.palette.black,scale:.385*CabinCharacters.guestScale,
-    x:landing.x,z:landing.z,yaw:Math.PI+arrivalYaw},8);
+  // Use the former size on the hearth cushions as the player's size in every pose.
+  const player=CabinCharacters.make(scene,{id:'you',name:'你',shape:'orb',color:CabinBotArt.palette.black,scale:.275*CabinCharacters.guestScale,
+    fixedSize:true,x:landing.x,z:landing.z,yaw:Math.PI+arrivalYaw},8);
   player.walkSpeed=2.16;fitCollision(player);player.root.name='玩家 Bot';player.root.visible=false;
-  player.root.traverse(object=>{if(object.isMesh)object.castShadow=false;});
+  const playerMaterials=new Map();
+  player.root.traverse(object=>{
+    if(!object.isMesh)return;
+    object.castShadow=false;
+    const shared=object.material;
+    if(!playerMaterials.has(shared))playerMaterials.set(shared,shared.clone());
+    object.material=playerMaterials.get(shared);
+  });
+  setPlayerReveal(0);
   const pos=player.root.position.copy(opening.position),velocity=new T.Vector3(),playerView=makeCabinPlayerView(room);
   const jumpApex=.90,idleJumpRise=.30,jumpGravity=8.8;
   let jumpSpeed=null;
@@ -1067,6 +1076,17 @@
     if(backdropPress&&e.target===exhibitDialog&&outsideCard(e))dismissExhibit();
     backdropPress=false;
   });
+  function setPlayerReveal(opacity){
+    player.model.visible=player.shade.visible=opacity>0;
+    for(const [shared,material] of playerMaterials){
+      material.opacity=shared.opacity*opacity;
+      const transparent=shared.transparent||opacity<1;
+      if(material.transparent!==transparent){
+        material.transparent=transparent;
+        material.needsUpdate=true;
+      }
+    }
+  }
   function enter(){
     if(entering||entered)return;
     const spawn=[landing,...[-.62,.62,-1.12,1.12].map(offset=>new T.Vector3(landing.x+offset,0,landing.z)),
@@ -1228,6 +1248,7 @@
     if(player.seat!==null)room.seats[player.seat].occupied=null;
     player.seat=null;player.seatMotion=null;player.benchMix=0;player.benchLimit=Infinity;cancelPath();$('seatBadge').hidden=true;
     player.root.visible=false;player.speed=player.stride=player.sitMix=0;playerView.reset();
+    setPlayerReveal(0);
     player.travelX=player.travelZ=player.impact=0;player.touching=null;jumpSpeed=null;
     releaseCanvasPointer();clearKeys();
     entered=false;entering=false;framedExhibit=null;entranceExhibit=null;grokArrival=null;doorProgress=0;
@@ -1404,6 +1425,7 @@
       doorProgress=Math.min(1,doorProgress+dt*(reduceMotion?3:.44));
       const progress=T.MathUtils.smootherstep(doorProgress,0,1);
       for(const {door,side} of room.doors)door.rotation.y=side*(1.37+progress*.52);
+      setPlayerReveal(T.MathUtils.smootherstep(doorProgress,.36,.94));
       if(doorProgress>=1){
         entering=false;entered=true;main.classList.add('in-room');
         $('entry').hidden=true;$('playUI').hidden=false;$('player-location').hidden=false;
