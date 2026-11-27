@@ -7,6 +7,20 @@ window.CabinBotArt = (() => {
     yellow:'#ffd14d', teal:'#15cbbb', violet:'#ad65f4', pink:'#fa6da6',
     lime:'#91d94a', brown:'#a4724d', gray:'#4b5054', black:'#151515'
   });
+  const shapes = [
+    {name:'圆球', value:'orb'}, {name:'方糖', value:'tile'},
+    {name:'云朵', value:'cloud'}, {name:'卵石', value:'pebble'},
+    {name:'水滴', value:'drop'}, {name:'徽章', value:'badge'},
+    {name:'花朵', value:'bloom'}, {name:'星星', value:'star'}
+  ];
+  const colors = [
+    {name:'薄荷绿', value:palette.green}, {name:'晴空蓝', value:palette.blue},
+    {name:'草莓红', value:palette.red}, {name:'橘子橙', value:palette.orange},
+    {name:'柠檬黄', value:palette.yellow}, {name:'海盐青', value:palette.teal},
+    {name:'葡萄紫', value:palette.violet}, {name:'莓果粉', value:palette.pink},
+    {name:'青苹果绿', value:palette.lime}, {name:'栗棕', value:palette.brown},
+    {name:'墨灰', value:palette.gray}, {name:'墨黑', value:palette.black}
+  ];
   const color = palette.green;
   const forms = {
     orb: {depth:0.49, eyes:[[18,22,2,45,14], [68,39,47,69,10]],
@@ -191,5 +205,5 @@ window.CabinBotArt = (() => {
     }
     const url=canvas.toDataURL();portraits.set(key,url);return url;
   }
-  return {palette,material,make,portrait,setDetail};
+  return {palette,shapes,colors,material,make,portrait,setDetail};
 })();

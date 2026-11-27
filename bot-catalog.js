@@ -1,19 +1,5 @@
 window.CabinBotCatalog = (() => {
-  const shapes = [
-    {name:'圆球', value:'orb'}, {name:'方糖', value:'tile'},
-    {name:'云朵', value:'cloud'}, {name:'卵石', value:'pebble'},
-    {name:'水滴', value:'drop'}, {name:'徽章', value:'badge'},
-    {name:'花朵', value:'bloom'}, {name:'星星', value:'star'}
-  ];
-  const {palette} = CabinBotArt;
-  const colors = [
-    {name:'薄荷绿', value:palette.green}, {name:'晴空蓝', value:palette.blue},
-    {name:'草莓红', value:palette.red}, {name:'橘子橙', value:palette.orange},
-    {name:'柠檬黄', value:palette.yellow}, {name:'海盐青', value:palette.teal},
-    {name:'葡萄紫', value:palette.violet}, {name:'莓果粉', value:palette.pink},
-    {name:'青苹果绿', value:palette.lime}, {name:'栗棕', value:palette.brown},
-    {name:'墨灰', value:palette.gray}, {name:'墨黑', value:palette.black}
-  ];
+  const {shapes, colors} = CabinBotArt;
   // Saved local guests keep the exact color picked in the previous creator.
   const legacyColors = new Set([
     '#13c16f','#3a9de6','#d3554e','#ec8c37','#e5ad38','#1ab5ab','#9970d8','#e36b99'

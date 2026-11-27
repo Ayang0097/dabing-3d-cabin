@@ -4,26 +4,66 @@
   const manage = form.dataset.mode === 'manage';
   const submit = form.querySelector('[type=submit]');
   const status = $('post-status');
+  const statusHome = status.parentElement;
   const uploadKey = $('uploadKey');
   const ownerKey = $('ownerKey');
   const templateLink = $('templateUrl');
+  const botName = $('botName');
+  const botJob = $('botJob');
+  const botShape = $('botShape');
   const endpoint = window.CabinPublication?.botsEndpoint;
+  if (!manage) mountAppearance();
   if (!endpoint) {
     setStatus('上传服务暂未启用。', true);
     return;
   }
   const url = new URL(manage ? 'upload-key' : endpoint, endpoint);
   let busy = false;
-  let lastTemplateUrl;
+  let lastSubmission;
   let requestId;
 
-  function setStatus(message, error = false) {
+  function mountAppearance() {
+    const {shapes, colors, portrait} = CabinBotArt;
+    const swatches = $('botColors');
+    const currentColor = $('botColorName');
+    const preview = $('botPreview');
+
+    for (const shape of shapes) botShape.add(new Option(shape.name, shape.value));
+    colors.forEach((color, index) => {
+      const label = document.createElement('label');
+      label.className = 'upload-swatch';
+      label.title = color.name;
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'botColor';
+      input.value = color.value;
+      input.checked = index === 0;
+      input.setAttribute('aria-label', color.name);
+      const sample = document.createElement('span');
+      sample.style.setProperty('--swatch-color', color.value);
+      label.append(input, sample);
+      swatches.append(label);
+    });
+
+    function updatePreview() {
+      const color = colors.find(choice => choice.value === form.elements.botColor.value);
+      currentColor.textContent = color.name;
+      preview.src = portrait(botShape.value, color.value);
+    }
+    botShape.addEventListener('change', updatePreview);
+    swatches.addEventListener('change', updatePreview);
+    updatePreview();
+  }
+
+  function setStatus(message, error = false, field) {
+    const placement = field?.closest('.upload-field') || statusHome;
+    if (placement !== status.parentElement) placement.append(status);
     status.textContent = message;
     status.toggleAttribute('data-error', error);
   }
 
   function updateSubmit() {
-    submit.disabled = busy || (!manage && (!uploadKey.value.trim() || !templateLink.value.trim()));
+    submit.disabled = busy || (!manage && [uploadKey, templateLink, botName].some(field => !field.value.trim()));
   }
 
   async function sendJson(url, payload) {
@@ -46,15 +86,19 @@
   function showError(error) {
     let field;
     if (error.status === 403) field = manage ? ownerKey : uploadKey;
-    else if (error.status === 400 && !manage) field = templateLink;
+    else if (error.status === 400 && !manage) {
+      if (error.message.includes('链接')) field = templateLink;
+      else if (error.message.includes('Bot 名称')) field = botName;
+      else if (error.message.includes('岗位')) field = botJob;
+    }
+    const message = error instanceof TypeError || error instanceof SyntaxError || error.name === 'TimeoutError'
+      ? '小屋暂时连不上，请稍后重试。' : error.message;
+    setStatus(message, true, field);
     if (field) {
       field.setAttribute('aria-invalid', 'true');
       field.focus();
       field.select();
     }
-    const message = error instanceof TypeError || error instanceof SyntaxError || error.name === 'TimeoutError'
-      ? '小屋暂时连不上，请稍后重试。' : error.message;
-    setStatus(message, true);
   }
 
   async function restoreDraft() {
@@ -65,6 +109,9 @@
       const link = value?.templateUrl;
       if (value?.v !== 1 || typeof link !== 'string' || !link.trim() || link.length > 1000) throw new Error();
       if (!templateLink.value) templateLink.value = link;
+      for (const [field, text] of [[botName, value.name], [botJob, value.job]]) {
+        if (!field.value && typeof text === 'string' && text.length <= field.maxLength) field.value = text;
+      }
       updateSubmit();
     } catch {
       if (!templateLink.value) setStatus('这条投稿链接没有带分享模板，请粘贴 Grok 的公开分享模板链接。', true);
@@ -89,15 +136,22 @@
   updateSubmit();
 
   function submission() {
-    const templateUrl = templateLink.value.trim();
-    if (templateUrl !== lastTemplateUrl) {
+    const packet = {
+      v:1,
+      name:botName.value.trim(),
+      job:botJob.value.trim() || 'Grok 模板',
+      templateUrl:templateLink.value.trim(),
+      shape:botShape.value,
+      color:form.elements.botColor.value,
+    };
+    const signature = JSON.stringify(packet);
+    if (signature !== lastSubmission) {
       requestId = crypto.randomUUID().replace(/-/g, '');
-      lastTemplateUrl = templateUrl;
+      lastSubmission = signature;
     }
-    const name = 'Grok Bot · ' + requestId.slice(0, 6).toUpperCase();
     return {
       uploadKey:uploadKey.value.trim(), publish:true,
-      packet:{v:1, requestId, name, job:'Grok 模板', templateUrl},
+      packet:{...packet, requestId},
     };
   }
 

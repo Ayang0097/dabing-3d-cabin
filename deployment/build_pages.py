@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEPLOYMENT = ROOT / "deployment"
 LOCAL_SCRIPTS = {"bot-creator.js", "grok-exchange.js"}
 UPLOAD_LINK = 'href="https://ayang0097.github.io/dabing-3d-cabin/upload.html" target="_blank" rel="noopener"'
+UPLOAD_SHARED_SCRIPTS = ("vendor/three.min.js", "bot-shapes.js", "bot-packet.js")
 
 
 def asset_version(path):
@@ -37,8 +38,10 @@ def build(output):
         filename: asset_version(DEPLOYMENT / filename)
         for filename in ("public-upload.js", "upload.css", "upload-scene.webp")
     }
+    upload_dependencies = {filename: asset_version(ROOT / filename) for filename in UPLOAD_SHARED_SCRIPTS}
     upload_page = DEPLOYMENT / "upload.html"
-    upload_revision = asset_version(upload_page) + "".join(upload_assets.values())
+    upload_versions = {**upload_assets, **upload_dependencies}
+    upload_revision = asset_version(upload_page) + "".join(upload_versions.values())
     upload_version = sha256(upload_revision.encode()).hexdigest()[:12]
     css_version = asset_version(ROOT / "house.css")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
@@ -67,7 +70,7 @@ def build(output):
     for filename in ("upload.html", "manage-upload.html"):
         page = (DEPLOYMENT / filename).read_text(encoding="utf-8")
         page = page.replace('href="house.css"', f'href="house.css?v={css_version}"')
-        for asset, version in upload_assets.items():
+        for asset, version in upload_versions.items():
             page = page.replace(f'="{asset}"', f'="{asset}?v={version}"')
         (output / filename).write_text(page, encoding="utf-8")
     for directory in ("audio", "textures", "exhibit-images", "classroom"):

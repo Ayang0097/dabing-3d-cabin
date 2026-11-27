@@ -9,6 +9,8 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="upload.css">
   <script src="site-config.js" defer></script>
+  <script src="vendor/three.min.js" defer></script>
+  <script src="bot-shapes.js" defer></script>
   <script src="bot-packet.js" defer></script>
   <script src="public-upload.js" defer></script>
 </head>
@@ -19,15 +21,46 @@
     <section class="upload-sheet" aria-labelledby="uploadTitle">
       <h1 id="uploadTitle">上传我的 BOT</h1>
       <form class="upload-form" method="post" data-mode="upload">
-        <div class="upload-field">
-          <label for="uploadKey">上传密钥</label>
-          <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥">
+        <div class="upload-fields upload-source">
+          <div class="upload-field">
+            <label for="uploadKey">上传密钥</label>
+            <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="输入屋主给你的密钥">
+          </div>
+          <div class="upload-field">
+            <label for="templateUrl">BOT 链接</label>
+            <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="uploadLinkHint">
+            <p id="uploadLinkHint" class="upload-hint"><a href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取 Grok 公开分享链接？</a></p>
+          </div>
         </div>
-        <div class="upload-field">
-          <label for="templateUrl">BOT 链接</label>
-          <input id="templateUrl" type="url" required maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="uploadLinkHint">
-          <p id="uploadLinkHint" class="upload-hint">粘贴 Grok 的公开分享模板链接。<a href="https://docs.x.ai/grok-bot/bots#share-a-bot" target="_blank" rel="noopener noreferrer">如何获取？</a></p>
-        </div>
+        <fieldset class="upload-group">
+          <legend>BOT 信息</legend>
+          <div class="upload-fields">
+            <div class="upload-field">
+              <label for="botName">BOT 名称</label>
+              <input id="botName" type="text" required maxlength="20" placeholder="小屋名片上的名字">
+            </div>
+            <div class="upload-field">
+              <label for="botJob">用途 <span>（选填）</span></label>
+              <input id="botJob" type="text" maxlength="20" placeholder="例如：按心情推荐民谣">
+            </div>
+          </div>
+        </fieldset>
+        <fieldset class="upload-group">
+          <legend>BOT 外观</legend>
+          <div class="upload-appearance">
+            <div class="upload-preview">
+              <img id="botPreview" alt="BOT 外观预览" width="96" height="96">
+            </div>
+            <div class="upload-field upload-shape">
+              <label for="botShape">形状</label>
+              <select id="botShape"></select>
+            </div>
+            <fieldset class="upload-palette">
+              <legend>颜色 <span id="botColorName"></span></legend>
+              <div class="upload-swatches" id="botColors"></div>
+            </fieldset>
+          </div>
+        </fieldset>
         <button class="upload-submit" type="submit" disabled>上传并公开<span aria-hidden="true">→</span></button>
       </form>
       <p class="upload-note">上传后，小屋访客可以复制这位 BOT。</p>
