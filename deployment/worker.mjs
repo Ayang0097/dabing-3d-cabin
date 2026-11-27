@@ -1,5 +1,6 @@
 const botsPath = '/api/community/bots';
 const keyPath = '/api/community/upload-key';
+const verifyKeyPath = '/api/community/verify-upload-key';
 const requestId = /^[a-f0-9]{32}$/;
 const botId = /^post-[a-f0-9]{32}$/;
 const shapeOptions = new Set(['orb', 'tile', 'cloud', 'pebble', 'drop', 'badge', 'bloom', 'star']);
@@ -132,13 +133,18 @@ async function updateUploadKey(env, payload) {
   ).bind(digest).run();
 }
 
-async function publishBot(env, payload) {
-  const supplied = normalizeKey(payload.uploadKey);
+async function requireUploadKey(db, key) {
+  const supplied = normalizeKey(key);
   if (!supplied) throw new RequestError(403, '请填写屋主提供的上传密钥。');
-  const authorized = await env.DB.prepare('SELECT digest FROM cabin_upload_key WHERE id = 1').first('digest');
+  const authorized = await db.prepare('SELECT digest FROM cabin_upload_key WHERE id = 1').first('digest');
   if (!authorized || !sameDigest(await keyDigest(supplied), authorized)) {
     throw new RequestError(403, '上传密钥不正确或已更换。');
   }
+  return authorized;
+}
+
+async function publishBot(env, payload) {
+  const authorized = await requireUploadKey(env.DB, payload.uploadKey);
   const {id, data} = publicProfile(payload);
   // Recheck within the write so a rotated key cannot authorize a late upload.
   const insert = env.DB.prepare(
@@ -168,7 +174,7 @@ export default {
     else if (allowed) headers.set('Access-Control-Allow-Origin', origin);
     const reply = (status, data) => new Response(JSON.stringify(data), {status, headers});
     try {
-      const isWriteRoute = pathname === botsPath || pathname === keyPath;
+      const isWriteRoute = pathname === botsPath || pathname === keyPath || pathname === verifyKeyPath;
       if (request.method === 'OPTIONS' && isWriteRoute && allowed) {
         headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         headers.set('Access-Control-Allow-Headers', 'Content-Type');
@@ -181,6 +187,10 @@ export default {
         if (pathname === keyPath) {
           await updateUploadKey(env, payload);
           return reply(200, {updated:true});
+        }
+        if (pathname === verifyKeyPath) {
+          await requireUploadKey(env.DB, payload.uploadKey);
+          return reply(200, {valid:true});
         }
         const result = await publishBot(env, payload);
         return reply(result.created ? 201 : 200, result);

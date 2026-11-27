@@ -13,6 +13,11 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent.parent
 DEPLOYMENT = ROOT / "deployment"
 LOCAL_SCRIPTS = {"bot-creator.js", "grok-exchange.js"}
+UPLOAD_LINK = 'href="https://ayang0097.github.io/dabing-3d-cabin/upload.html" target="_blank" rel="noopener"'
+
+
+def asset_version(path):
+    return sha256(path.read_bytes()).hexdigest()[:12]
 
 
 def bots_endpoint():
@@ -27,28 +32,36 @@ def bots_endpoint():
 
 def build(output):
     output.mkdir(parents=True, exist_ok=True)
-    classroom_css = ROOT / "classroom" / "assets" / "room.css"
-    classroom_version = sha256(classroom_css.read_bytes()).hexdigest()[:12]
+    classroom_version = asset_version(ROOT / "classroom" / "assets" / "room.css")
+    upload_version = asset_version(DEPLOYMENT / "public-upload.js")
+    css_version = asset_version(ROOT / "house.css")
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     html = re.sub(r'<script data-source-only>.*?</script>\s*', "", html, flags=re.S)
     html = html.replace('<title>大冰的小屋 · Bot 民谣现场</title>', '<title>3D 大冰的小屋 · Bot 民谣现场</title>')
     html = html.replace('href="http://127.0.0.1:8769/#classroom"', f'href="./classroom/?v={classroom_version}#classroom"')
-    html = re.sub(r'<a id="communityPost"[^>]*>.*?</a>', "", html)
+    html = html.replace(UPLOAD_LINK, f'href="./upload.html?v={upload_version}"', 1)
     for filename in LOCAL_SCRIPTS:
         html = html.replace(f'<script src="{filename}"></script>', "")
 
     for filename in re.findall(r'<script src="([^"]+)"', html):
         target = output / filename
         target.parent.mkdir(parents=True, exist_ok=True)
-        copy2(ROOT / filename, target)
+        source = ROOT / filename
+        copy2(source, target)
+        html = html.replace(f'src="{filename}"', f'src="{filename}?v={asset_version(source)}"')
+    html = html.replace('href="house.css"', f'href="house.css?v={css_version}"')
     html = html.replace("</head>", '<script src="site-config.js"></script>\n</head>', 1)
     (output / "index.html").write_text(html, encoding="utf-8")
 
     config = json.dumps({"botsEndpoint": bots_endpoint()})
     (output / "site-config.js").write_text(f"window.CabinPublication = Object.freeze({config});\n", encoding="utf-8")
     copy2(ROOT / "house.css", output / "house.css")
-    for filename in ("upload.html", "manage-upload.html", "public-upload.js"):
-        copy2(DEPLOYMENT / filename, output / filename)
+    copy2(DEPLOYMENT / "public-upload.js", output / "public-upload.js")
+    for filename in ("upload.html", "manage-upload.html"):
+        page = (DEPLOYMENT / filename).read_text(encoding="utf-8")
+        page = page.replace('src="public-upload.js"', f'src="public-upload.js?v={upload_version}"')
+        page = page.replace('href="house.css"', f'href="house.css?v={css_version}"')
+        (output / filename).write_text(page, encoding="utf-8")
     for directory in ("audio", "textures", "exhibit-images", "classroom"):
         copytree(ROOT / directory, output / directory, dirs_exist_ok=True, ignore=ignore_patterns(".DS_Store"))
     classroom_index = output / "classroom" / "index.html"

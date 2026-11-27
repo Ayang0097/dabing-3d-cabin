@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#263834">
   <meta name="referrer" content="no-referrer">
-  <title>密钥上传 BOT · 大冰的小屋</title>
+  <title>上传我的 BOT · 大冰的小屋</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="house.css">
   <script src="site-config.js" defer></script>
@@ -16,12 +16,15 @@
   <main class="post-page">
     <div class="post-sheet">
       <a class="post-back" href="./">← 大冰的小屋</a>
-      <h1>上传 BOT</h1>
-      <p>填入屋主提供的上传密钥。提交后，所有访客都能看见并复制这位 BOT。</p>
-      <form class="public-upload-form" method="post" data-mode="upload">
+      <h1>上传我的 BOT</h1>
+      <p>每次上传前，请先验证屋主给你的上传密钥。</p>
+      <form class="public-upload-form" id="verifyUpload" method="post">
         <label>上传密钥
           <input id="uploadKey" type="password" required maxlength="256" autocomplete="off" spellcheck="false" autocapitalize="none">
         </label>
+        <button class="act" type="submit" disabled>验证密钥</button>
+      </form>
+      <form class="public-upload-form" method="post" data-mode="upload" hidden>
         <label>BOT 名称
           <input id="botName" type="text" required maxlength="20">
         </label>
@@ -34,7 +37,7 @@
         <label>Grok 分享模板链接（可选）
           <input id="templateUrl" type="url" maxlength="1000" placeholder="https://x.ai/bot/…" autocomplete="off">
         </label>
-        <p>工作指令和模板链接至少填一项。</p>
+        <p>工作指令和模板链接至少填一项。提交后，访客可以看见并复制这位 BOT。</p>
         <button class="act" type="submit" disabled>上传并公开</button>
       </form>
       <p id="post-status" class="post-status" role="status"></p>

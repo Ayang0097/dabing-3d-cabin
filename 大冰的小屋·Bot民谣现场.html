@@ -668,7 +668,7 @@
 .public-upload-form [aria-invalid=true] {border-color:#edb592}
 .public-upload-form p {margin:0}
 .public-upload-form button {justify-self:start}
-.post-entry {text-decoration:none}
+.post-entry {color:inherit;text-decoration:none;white-space:nowrap}
 
 </style>
 </head>
@@ -678,9 +678,9 @@
   <canvas id="world" aria-label="三维木屋。进屋后可操控自己的 Bot，空格跳跃，拖动转视角，点地板走过去，点机器人或物件互动。" tabindex="0"></canvas>
   <div id="shade"></div>
   <header class="mast"><img class="bot-emblem" id="cabinMark" alt=""><div><h1>大冰的小屋</h1><p>BOT 民谣现场</p></div></header>
-  <div class="upper"><a id="treeSceneLink" class="glass" href="http://127.0.0.1:8769/#classroom" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" title="打开且曼教室">且曼教室 ↗</a><button id="sound" class="glass" aria-label="打开声音"><span class="audio-icon"><i></i><i></i><i></i><i></i></span><span id="soundText">声音关</span></button><button id="origin" class="glass">取材手记</button></div>
+  <div class="upper"><a id="treeSceneLink" class="glass" href="http://127.0.0.1:8769/#classroom" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" title="打开且曼教室">且曼教室 ↗</a><button id="sound" class="glass" aria-label="打开声音"><span class="audio-icon"><i></i><i></i><i></i><i></i></span><span id="soundText">声音关</span></button><a id="uploadBot" class="glass post-entry" href="https://ayang0097.github.io/dabing-3d-cabin/upload.html" target="_blank" rel="noopener">上传我的 BOT</a></div>
   <div id="entry" class="entry"><div class="entry-info"><span class="lit"></span><span>今夜在场</span><b id="botCount">09</b><span>位 Bot</span></div><h2>进屋，坐坐。</h2>
-  <div class="entry-row"><button id="enter" class="primary">推门入场 <span>↗</span></button><a id="communityPost" class="glass post-entry" href="/submit" hidden>受邀投稿 ↗</a><span class="entry-note">进屋后可拖动环顾</span></div></div>
+  <div class="entry-row"><button id="enter" class="primary">推门入场 <span>↗</span></button><span class="entry-note">进屋后可拖动环顾</span></div></div>
   <div id="player-location" hidden><i></i><span id="loc-text">门厅</span></div>
   <div id="hoverTag" hidden></div>
   <div id="playUI" hidden><div id="ambientEvent" role="status"></div>
@@ -8233,7 +8233,7 @@ window.makeCabinPlayerView = function(room){
       $('drawerBody').scrollTop=previous.scroll;
       $('drawerBody').querySelector('[data-story="'+previous.city+'"]')?.focus({preventScroll:true});
     }else{
-      (entered?canvas:$('origin')).focus({preventScroll:true});
+      (entered?canvas:$('uploadBot')).focus({preventScroll:true});
     }
   }
   $('exhibitClose').onclick=dismissExhibit;
@@ -8440,7 +8440,7 @@ window.makeCabinPlayerView = function(room){
       if(moveKey&&(player.seat!==null||player.seatMotion))stand(true);
     }
   });document.addEventListener('keyup',e=>keys.delete(e.code));
-  $('enter').onclick=enter;$('closeDrawer').onclick=close;$('origin').onclick=()=>openPanel('origins');$('standBtn').onclick=()=>stand();
+  $('enter').onclick=enter;$('closeDrawer').onclick=close;$('standBtn').onclick=()=>stand();
   for(const b of document.querySelectorAll('[data-open]'))b.onclick=()=>openPanel(b.dataset.open);
   let last=performance.now(),raf=0,nextFrame=0,previousRate=0,botMotionUntil=0;
   const locationLabel=$('loc-text'),ambientEvent=$('ambientEvent'),mapDialog=$('roomMapDialog'),dock=main.querySelector('.dock');
@@ -9612,8 +9612,7 @@ window.CabinCommunity = (() => {
   }
 
   function mount(box) {
-    const submitLink = publication ? '' : '<a class="grok-launch" href="/submit">凭邀请码投稿 ↗</a>';
-    box.innerHTML = '<div class="grok-actions roster-actions">' + submitLink +
+    box.innerHTML = '<div class="grok-actions roster-actions">' +
       '<button class="quiet" data-act="roster">在店伙伴</button></div>' +
       '<div class="community-list"></div><p class="hint" role="status"></p>' +
       '<button type="button" class="quiet post-more" hidden>更多投稿</button>';
@@ -9663,7 +9662,6 @@ window.CabinCommunity = (() => {
 
   function init() {
     if (!enabled) return;
-    if (!publication) document.getElementById('communityPost').hidden = false;
     window.addEventListener('hashchange', openPermalink);
     document.addEventListener('visibilitychange', poll);
     openPermalink();

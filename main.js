@@ -1052,7 +1052,7 @@
       $('drawerBody').scrollTop=previous.scroll;
       $('drawerBody').querySelector('[data-story="'+previous.city+'"]')?.focus({preventScroll:true});
     }else{
-      (entered?canvas:$('origin')).focus({preventScroll:true});
+      (entered?canvas:$('uploadBot')).focus({preventScroll:true});
     }
   }
   $('exhibitClose').onclick=dismissExhibit;
@@ -1259,7 +1259,7 @@
       if(moveKey&&(player.seat!==null||player.seatMotion))stand(true);
     }
   });document.addEventListener('keyup',e=>keys.delete(e.code));
-  $('enter').onclick=enter;$('closeDrawer').onclick=close;$('origin').onclick=()=>openPanel('origins');$('standBtn').onclick=()=>stand();
+  $('enter').onclick=enter;$('closeDrawer').onclick=close;$('standBtn').onclick=()=>stand();
   for(const b of document.querySelectorAll('[data-open]'))b.onclick=()=>openPanel(b.dataset.open);
   let last=performance.now(),raf=0,nextFrame=0,previousRate=0,botMotionUntil=0;
   const locationLabel=$('loc-text'),ambientEvent=$('ambientEvent'),mapDialog=$('roomMapDialog'),dock=main.querySelector('.dock');

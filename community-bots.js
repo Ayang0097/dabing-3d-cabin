@@ -69,8 +69,7 @@ window.CabinCommunity = (() => {
   }
 
   function mount(box) {
-    const submitLink = publication ? '' : '<a class="grok-launch" href="/submit">凭邀请码投稿 ↗</a>';
-    box.innerHTML = '<div class="grok-actions roster-actions">' + submitLink +
+    box.innerHTML = '<div class="grok-actions roster-actions">' +
       '<button class="quiet" data-act="roster">在店伙伴</button></div>' +
       '<div class="community-list"></div><p class="hint" role="status"></p>' +
       '<button type="button" class="quiet post-more" hidden>更多投稿</button>';
@@ -120,7 +119,6 @@ window.CabinCommunity = (() => {
 
   function init() {
     if (!enabled) return;
-    if (!publication) document.getElementById('communityPost').hidden = false;
     window.addEventListener('hashchange', openPermalink);
     document.addEventListener('visibilitychange', poll);
     openPermalink();
