@@ -32,7 +32,7 @@ dialog{width:min(510px,calc(100vw - 25px));background:#21392e;color:var(--cream)
   padding:clamp(13px,2.5vh,25px) clamp(15px,3vw,45px) 4px;
   pointer-events:none;
 }
-.room-header button{pointer-events:auto}
+.room-header button,.room-header a.crumb{pointer-events:auto}
 .teacher-room{grid-template-rows:auto minmax(0,1fr)}
 .teacher-room .room-frame{grid-row:2}
 .room-header h1{
